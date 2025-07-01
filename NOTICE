@@ -1,0 +1,45 @@
+NOTICE: Ehokolo Fluxon Model Research Repository
+
+This repository contains research materials for the Ehokolo Fluxon Model, 
+organized by density according to the Reciprocal System Theory.
+
+LICENSING STRUCTURE:
+
+1. CODE & SIMULATIONS (GPL v3):
+   - All Python scripts, Jupyter notebooks, and computational simulations
+   - Located in: /research/*/notebooks/, /tools/
+   - License: GNU General Public License v3
+   - Effect: Open source, modifications must be shared
+
+2. PAPERS & DOCUMENTS (CC BY-NC-ND 4.0):
+   - All .tex files, .pdf files, figures, and written content
+   - Located in: /hypothesis-papers/, /research/*/papers/, /research/*/results/
+   - License: Creative Commons Attribution-NonCommercial-NoDerivatives 4.0
+   - Effect: Read-only, no commercial use, no derivatives without permission
+
+3. LLM SESSIONS:
+   - Public sessions: Available under CC BY-NC-ND 4.0
+   - Private sessions: Not included in public repository
+   - Located in: /llm-sessions/
+
+USAGE RIGHTS:
+
+✅ PERMITTED:
+- Reading and studying all materials
+- Citing papers in academic work
+- Using code for research and education
+- Sharing links to the repository
+- Contributing code improvements (must be GPL v3)
+
+❌ RESTRICTED:
+- Commercial use of papers or content
+- Creating derivative works without permission
+- Selling or redistributing content
+- Using code in proprietary software
+
+COPYRIGHT:
+© 2025 [Your Name]. All rights reserved for commercial and derivative use.
+
+For permission requests: [Your Contact Information]
+
+For more details, see LICENSE and LICENSE.docs files. 

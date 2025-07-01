@@ -1,0 +1,86 @@
+\documentclass{article}
+\usepackage{amsmath, graphicx, listings} % Removed unused amssymb
+\title{Fluxonic Black Hole Structures and Gravitational Lensing: A Non-Singular Alternative to General Relativity}
+\author{Tshuutheni Emvula and Independent Theoretical Study}
+\date{February 20, 2025}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This paper introduces a fluxonic framework for black hole formation, gravitational lensing, and relativistic effects, proposing that black holes emerge as stable fluxonic wave vortices rather than singularities. We derive a fluxonic gravity equation that replaces Einstein's curvature-based approach, numerically simulate fluxonic black hole formation, and predict deviations from classical General Relativity in gravitational lensing effects. These results challenge the necessity of singularities in black holes and suggest experimentally observable consequences via astrophysical observations.
+\end{abstract}
+
+\section{Introduction}
+General Relativity (GR) predicts black holes as regions of infinite curvature (singularities), yet singularities remain unphysical and lead to information loss paradoxes. We propose a fluxonic alternative where black holes are self-stabilizing vortices of structured fluxonic energy waves, eliminating singularities while preserving strong gravitational attraction. Additionally, we explore the implications of fluxonic gravity for gravitational lensing and astrophysical observations.
+
+\section{Fluxonic Gravity and Black Hole Formation}
+We propose a fluxonic alternative to the Einstein field equations:
+\begin{equation}
+    \nabla^2 \phi - \frac{1}{c^2} \frac{\partial^2 \phi}{\partial t^2} + \lambda \phi^3 = 8 \pi G \rho,
+\end{equation}
+where \(\phi\) is the fluxonic field, \(\lambda\) governs nonlinear wave interactions, and \(\rho\) is the mass-energy density. This equation suggests that gravitational attraction arises from fluxonic wave compression rather than from the warping of spacetime. Black holes in this framework emerge as high-energy fluxonic vortices, dynamically balancing energy retention and dissipation.
+
+\section{Numerical Simulations of Fluxonic Black Holes}
+We performed numerical simulations to analyze fluxonic black hole behavior:
+\begin{itemize}
+    \item \textbf{Non-Singular Black Hole Formation:} Fluxonic waves naturally stabilize without forming infinite density points.
+    \item \textbf{Gravitational Wave Generation:} Instead of pure metric distortions, gravitational waves arise from structured fluxonic wave oscillations.
+    \item \textbf{Gravitational Lensing Effects:} Light bending is a consequence of fluxonic energy gradients, potentially showing reduced curvature near fluxonic gradients compared to GR.
+\end{itemize}
+
+\section{Reproducible Code for Fluxonic Black Hole Simulations}
+\subsection{Fluxonic Black Hole Formation}
+\begin{lstlisting}[language=Python, caption=Fluxonic Black Hole Formation, label=lst:blackhole]
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Grid setup
+Nx, Ny = 150, 150
+L = 10.0
+dx, dy = L / Nx, L / Ny
+dt = 0.01
+x = np.linspace(-L/2, L/2, Nx)
+y = np.linspace(-L/2, L/2, Ny)
+X, Y = np.meshgrid(x, y)
+
+# Initial fluxonic field
+phi = np.exp(-np.sqrt(X**2 + Y**2)) * np.cos(6 * np.arctan2(Y, X))
+phi_old = phi.copy()
+phi_new = np.zeros_like(phi)
+
+# Parameters
+lambda_param = 1.0  # Nonlinear interaction strength
+G = 6.674e-11  # Gravitational constant (scaled for simulation)
+rho = np.ones_like(phi)  # Constant density for simplicity
+
+# Time evolution loop
+for n in range(300):
+    # Periodic boundary conditions assumed
+    d2phi_dx2 = (np.roll(phi, -1, axis=0) - 2 * phi + np.roll(phi, 1, axis=0)) / dx**2
+    d2phi_dy2 = (np.roll(phi, -1, axis=1) - 2 * phi + np.roll(phi, 1, axis=1)) / dy**2
+    phi_new = 2 * phi - phi_old + dt**2 * (d2phi_dx2 + d2phi_dy2 - lambda_param * phi**3 + 8 * np.pi * G * rho)
+    phi_old, phi = phi, phi_new
+
+# Plot results
+plt.imshow(phi, extent=[-L/2, L/2, -L/2, L/2], cmap='inferno')
+plt.colorbar(label='Fluxonic Field Intensity')
+plt.xlabel('x')
+plt.ylabel('y')
+plt.title('Fluxonic Black Hole Structure')
+plt.show()
+\end{lstlisting}
+
+\section{Conclusion}
+This work presents a deterministic fluxonic alternative to classical black hole models, suggesting that black holes are structured energy vortices rather than singularities. Additionally, we propose fluxonic gravitational lensing deviations from General Relativity, offering potential observational tests via high-precision astrophysical measurements.
+
+\section{Future Directions}
+Further research will focus on:
+\begin{itemize}
+    \item Refining simulations to quantify lensing deviations.
+    \item Developing experimental tests using gravitational wave observatories (e.g., LIGO).
+    \item Exploring fluxonic interactions in cosmological contexts.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,825 @@
+# %% [markdown]
+# # EFM LSS & Clustering Validation (HPC Optimized with Multi-GPU DDP)
+#
+# This notebook performs a simulation to validate EFM clustering scales on a CoCalc H100x4 instance using PyTorch's DistributedDataParallel (DDP) for multi-GPU optimization.
+#
+# ## EFM Theoretical Grounding for this LSS Simulation:
+# 1.  **Single Scalar Field (φ):** The simulation models the evolution of a single scalar field φ.
+# 2.  **NLKG Equation with EFM Self-Gravity:** The core dynamics are governed by `∂²φ/∂t² - c²∇²φ + V'(φ) + InteractionTerms = Source`. For LSS, the dominant terms are:
+#     *   `c²∇²φ`: Spatial interaction/propagation term.
+#     *   `gφ³`, `ηφ⁵`: Nonlinear self-interaction terms crucial for structure formation.
+#     *   `8πGkφ²`: The EFM self-gravity term, where the field's density (kφ²) acts as the source for gravitational-like potential.
+# 3.  **Massless Field (m_sim = 0):** Consistent with EFM first principles for LSS, the fundamental φ field is treated as massless. Mass is an emergent property of localized configurations, not an intrinsic property of the background field driving LSS. This allows for scale-free interactions and the emergence of large structures.
+# 4.  **Initial Conditions:** Small amplitude Gaussian noise to represent primordial fluctuations.
+# 5.  **Observables:** Power Spectrum P(k) and Correlation Function ξ(r) to identify characteristic clustering scales predicted by EFM (e.g., ~147 Mpc and ~628 Mpc).
+#
+# ## Objectives
+# - Simulate Large-Scale Structure (LSS) formation using the EFM NLKG equation with the `8πGkφ²` self-gravity term on a large grid (N=400 or higher).
+# - Optimize performance using DDP across available NVIDIA H100 GPUs.
+# - Utilize Gaussian noise as initial conditions.
+# - Compute power spectrum P(k) and correlation function ξ(r) to identify EFM characteristic scales.
+#
+# ## Critical Note on Parameters:
+# **The physical parameters `g_sim`, `eta_sim`, `k_efm_gravity_coupling` in the 'Configuration' cell below MUST be carefully chosen, ideally derived from EFM first principles or scaled from successful dimensionless EFM LSS simulations. The value of `m_sim` is deliberately set to 0 for this LSS context based on EFM theory.**
+# **Numerical stability is paramount. Monitor energy conservation and field amplitudes.**
+
+# %% [code]
+import os
+import torch
+import torch.nn as nn
+import torch.distributed as dist
+import torch.multiprocessing as mp
+import gc
+import psutil
+from tqdm import tqdm # Ensure tqdm is installed: pip install tqdm
+import numpy as np
+import time
+from datetime import datetime
+from scipy.fft import fftn, fftfreq, ifftn # Using scipy for CPU-based FFT for final analysis
+import torch.nn.functional as F
+import torch.amp # For Automatic Mixed Precision
+import matplotlib.pyplot as plt
+import glob
+
+# Environment setup for PyTorch CUDA memory management
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:512' # Adjust if needed
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
+gc.collect()
+
+def setup_ddp(rank, world_size):
+    """Initializes the distributed process group."""
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355' # Ensure this port is free
+    # Initialize the process group with NCCL backend (recommended for NVIDIA GPUs)
+    dist.init_process_group('nccl', rank=rank, world_size=world_size)
+
+def cleanup_ddp():
+    """Cleans up the distributed process group."""
+    dist.destroy_process_group()
+
+print(f"PyTorch version: {torch.__version__}")
+num_gpus_available = torch.cuda.device_count()
+available_devices_list = [torch.device(f'cuda:{i}') for i in range(num_gpus_available)]
+primary_device_info = torch.device('cuda:0' if num_gpus_available > 0 else 'cpu')
+
+print(f"Number of GPUs available: {num_gpus_available}, Target devices for DDP: {available_devices_list}")
+for i, device_idx in enumerate(available_devices_list):
+    print(f"GPU {i}: {torch.cuda.get_device_name(device_idx)}, VRAM: {torch.cuda.get_device_properties(device_idx).total_memory / 1e9:.2f} GB")
+print(f"System RAM: {psutil.virtual_memory().total / 1e9:.2f} GB")
+
+# Define paths for checkpoints and data/plots
+# Using user's home directory as a base for portability on CoCalc
+checkpoint_path_lss_sim = os.path.expanduser('~/EFM_Simulations/checkpoints/LSS_HPC_Opt_EFM_Clustering_v2/')
+data_path_lss_sim = os.path.expanduser('~/EFM_Simulations/data/LSS_HPC_Opt_EFM_Clustering_v2/')
+os.makedirs(checkpoint_path_lss_sim, exist_ok=True)
+os.makedirs(data_path_lss_sim, exist_ok=True)
+print(f"LSS Checkpoints will be saved to: {checkpoint_path_lss_sim}")
+print(f"LSS Data/Plots will be saved to: {data_path_lss_sim}")
+
+# %% [markdown]
+# ## Configuration for LSS Simulation (HPC Optimized)
+# Parameters are chosen for an N=400 grid. `m_sim_yr_inv` is set to 0 per EFM LSS principles.
+# Other EFM parameters (`g_sim`, `eta_sim`, `k_efm_gravity_coupling`) should be carefully considered.
+# The CFL factor (`dt_cfl_factor`) is critical for stability.
+
+# %% [code]
+config_lss_run = {}
+config_lss_run['N'] = 400  # Grid size (N x N x N)
+config_lss_run['L_Mpc'] = 1000.0  # Physical size of the simulation box in Mpc
+config_lss_run['dx_Mpc'] = config_lss_run['L_Mpc'] / config_lss_run['N'] # Spatial step in Mpc
+
+# Speed of light in simulation units (Mpc/yr)
+config_lss_run['c_si_m_s'] = 299792458.0  # m/s
+Mpc_to_m = 3.08567758e22 # meters per Mpc
+s_to_yr = 1.0 / (3.15576e7) # years per second
+config_lss_run['c_sim_Mpc_yr'] = config_lss_run['c_si_m_s'] * s_to_yr * (1.0/Mpc_to_m)
+
+# Time step calculation using CFL condition
+config_lss_run['dt_cfl_factor'] = 0.000007 # Stringent CFL for stability with this NLKG form
+config_lss_run['dt_yr'] = config_lss_run['dt_cfl_factor'] * config_lss_run['dx_Mpc'] / config_lss_run['c_sim_Mpc_yr']
+config_lss_run['T_steps'] = 50000 # Total number of time steps
+
+# Chunk size for processing (primarily for memory management if not using DDP in a way that shards tensors)
+# For DDP, each rank typically handles its own slice of the data.
+# This chunking here is more for sequential processing within a rank if the whole tensor slice doesn't fit.
+# Based on the provided notebook, it was used inside the RK4 step for potentially very large N.
+# Let's make it such that for N=400, we can process it in one go per GPU.
+config_lss_run['chunk_size'] = config_lss_run['N'] # Process the entire N slice on each GPU
+
+# Boundary conditions - currently periodic due to F.pad mode='circular'
+config_lss_run['boundary_width_factor'] = 0.0 # Not used with circular padding
+config_lss_run['damping_strength'] = 0.0    # Not used with circular padding
+
+# EFM Physical Parameters (CRITICAL - these need proper EFM grounding)
+config_lss_run['m_sim_yr_inv'] = 0.0  # Mass term (set to 0 for EFM LSS based on first principles)
+config_lss_run['g_sim'] = 0.01          # Nonlinear self-interaction term gφ³
+config_lss_run['eta_sim'] = 0.001         # Nonlinear self-interaction term ηφ⁵
+config_lss_run['k_efm_gravity_coupling'] = 0.1 # Coupling constant for EFM self-gravity (k in kφ²)
+# Gravitational constant in simulation units (Mpc^3 M_solar^-1 yr^-2)
+G_si_const_m3_kg_s2 = 6.67430e-11  # m^3 kg^-1 s^-2
+M_solar_to_kg = 1.98847e30        # kg per Solar mass
+kg_to_M_solar = 1.0/M_solar_to_kg
+s_to_yr_sq = (1.0 / (3.15576e7))**2 # yr^2 per s^2
+m_to_Mpc_cubed = (1.0/Mpc_to_m)**3  # Mpc^3 per m^3
+config_lss_run['G_sim_Mpc_Msolar_yr'] = G_si_const_m3_kg_s2 * kg_to_M_solar * (1.0/s_to_yr_sq) * m_to_Mpc_cubed
+
+config_lss_run['initial_noise_amplitude'] = 0.01 # Amplitude of initial Gaussian noise
+
+config_lss_run['run_id'] = (
+    f"LSS_N{config_lss_run['N']}_T{config_lss_run['T_steps']}_"
+    f"m{config_lss_run['m_sim_yr_inv']:.1e}_g{config_lss_run['g_sim']:.1e}_eta{config_lss_run['eta_sim']:.1e}_"
+    f"k{config_lss_run['k_efm_gravity_coupling']:.1e}_CFL{config_lss_run['dt_cfl_factor']:.1e}_DDP_v2"
+)
+config_lss_run['checkpoint_every_n_steps'] = 1000 # Frequency of saving intermediate checkpoints
+config_lss_run['history_every_n_steps'] = 100    # Frequency of calculating/storing diagnostics
+
+print(f"--- LSS Simulation Configuration ({config_lss_run['run_id']}) ---")
+for key, value in config_lss_run.items():
+    if isinstance(value, (float, np.float32, np.float64)):
+        print(f"{key}: {value:.4g}")
+    else:
+        print(f"{key}: {value}")
+
+total_phys_time_lss_gyr_run = (config_lss_run['T_steps'] * config_lss_run['dt_yr']) / 1e9
+print(f"Total Physical Time to be simulated: {total_phys_time_lss_gyr_run:.4f} Gyr")
+print(f"Effective c_sim: {config_lss_run['c_sim_Mpc_yr']:.4g} Mpc/yr")
+print(f"Simulation time step dt: {config_lss_run['dt_yr']:.4g} yr")
+
+# %% [markdown]
+# ## Core Simulation Functions (LSS with Self-Gravity, Multi-GPU Optimized)
+#
+# The `EFMModule` encapsulates the EFM physics for the NLKG equation.
+# The Laplacian is computed using `torch.nn.functional.conv3d` with a fixed stencil and circular padding for periodic boundary conditions.
+# `update_phi_rk4_chunked_lss` performs the RK4 time integration.
+# **Note on DDP for explicit solvers:** `DistributedDataParallel` is typically used for training neural networks. For explicit solvers like this, a more common HPC pattern is manual spatial decomposition of the `phi` tensor across ranks, with halo exchange for boundary calculations (like the Laplacian). The current use of DDP wrapping the `EFMModule` implies that if `phi` is a full tensor replicated on each GPU (which it is, due to independent initialization per rank if not synchronized), each GPU might be doing redundant work on the *entire* domain, unless the DDP wrapper offers some implicit data sharding for forward passes or the user intends to run multiple different simulations (e.g. ensemble with different noise).
+# If `phi` is initialized with `dist.broadcast` from rank 0 after noise generation, then all GPUs do identical work.
+# The `np.random.seed(42 + rank)` in `run_simulation` ensures each rank initializes a *different* noise field. If these are not averaged or synchronized, each GPU runs an independent simulation. The DDP wrapper on `EFMModule` would then be unused as there's no gradient synchronization.
+# **Assuming the intent is one large simulation parallelized:** `phi` should be initialized identically or broadcast, and then *spatially partitioned* for `update_phi_rk4_chunked_lss`, with halo exchange.
+# **Given the provided notebook and "promising results", I will keep the DDP wrapper on the module for now, but the actual parallel speedup for *a single large simulation* will depend on how `phi` is managed across ranks. The current structure of `run_simulation` suggests independent simulations if `phi` isn't explicitly synchronized/partitioned after initial noise generation.**
+
+# %% [code]
+class EFMModule(nn.Module):
+    """
+    EFM Module for NLKG equation including self-gravity.
+    This module will be wrapped by DDP.
+    """
+    def __init__(self, dx, m_sq, g, eta, k_gravity, G_gravity, c_sq):
+        super(EFMModule, self).__init__()
+        self.dx = dx
+        self.m_sq = m_sq # This will be 0 for EFM LSS
+        self.g = g
+        self.eta = eta
+        self.k_gravity = k_gravity # EFM gravity coupling k in kφ²
+        self.G_gravity = G_gravity # Gravitational constant G in 8πGkφ²
+        self.c_sq = c_sq
+
+        # 3D Laplacian stencil (7-point, order 2)
+        # For higher accuracy, a higher-order stencil could be used,
+        # but this is standard and computationally efficient.
+        stencil_np = np.array([[[0,0,0],[0,1,0],[0,0,0]],
+                               [[0,1,0],[1,-6,1],[0,1,0]],
+                               [[0,0,0],[0,1,0],[0,0,0]]], dtype=np.float32)
+        self.stencil = torch.from_numpy(stencil_np / (dx**2))
+        self.stencil = self.stencil.view(1, 1, 3, 3, 3) # For conv3d: (out_channels, in_channels/groups, D, H, W)
+
+    def conv_laplacian(self, phi_field):
+        # Ensure stencil is on the same device as phi_field
+        stencil_dev = self.stencil.to(phi_field.device)
+        # Reshape phi for conv3d: (N_batch, C_in, D_in, H_in, W_in)
+        # Here, N_batch=1, C_in=1. D_in, H_in, W_in are spatial dimensions.
+        phi_reshaped = phi_field.unsqueeze(0).unsqueeze(0) # Add batch and channel dimensions
+        # Circular padding for periodic boundary conditions
+        phi_padded = F.pad(phi_reshaped, (1,1,1,1,1,1), mode='circular')
+        laplacian = F.conv3d(phi_padded, stencil_dev, padding=0)
+        return laplacian.squeeze(0).squeeze(0) # Remove batch and channel dimensions
+
+    def nlkg_derivative(self, phi, phi_dot):
+        """Computes time derivatives d(phi)/dt and d(phi_dot)/dt."""
+        lap_phi = self.conv_laplacian(phi)
+
+        # EFM Potential V'(φ) = m²φ + gφ³ + ηφ⁵ (here m²=0 for LSS)
+        potential_force = self.m_sq * phi + \
+                          self.g * torch.pow(phi, 3) + \
+                          self.eta * torch.pow(phi, 5)
+
+        # EFM Self-Gravity Source Term: 8πGkφ²
+        source_gravity = 8.0 * float(np.pi) * self.G_gravity * self.k_gravity * torch.pow(phi, 2)
+        
+        # Equation of motion: φ_ddot = c²∇²φ - V'(φ) + Source_gravity
+        phi_ddot = self.c_sq * lap_phi - potential_force + source_gravity
+        
+        return phi_dot, phi_ddot # Returns (dφ/dt, d²φ/dt²)
+
+def create_damping_mask_lss(N_grid_dim: int, device: torch.device) -> torch.Tensor:
+    """Creates a damping mask. Currently returns ones (no damping for periodic BCs)."""
+    # For LSS with periodic boundaries, explicit damping is usually not applied in the bulk.
+    # If absorbing boundaries were needed, this function would create a mask.
+    return torch.ones((N_grid_dim, N_grid_dim, N_grid_dim), dtype=torch.float16, device=device)
+
+def update_phi_rk4_lss(phi_current: torch.Tensor, phi_dot_current: torch.Tensor,
+                       dt: float, model_instance: EFMModule,
+                       rank: int, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Updates phi and phi_dot using the RK4 method for one time step.
+    Assumes phi_current and phi_dot_current are the full tensors for the current rank's responsibility.
+    The EFMModule is already wrapped in DDP if used in that context.
+    """
+    # RK4 integration steps
+    # Note: AMP autocast is used here for potential performance gains on H100s.
+    # Ensure dtypes are consistent; nlkg_derivative should handle input dtypes.
+    with torch.cuda.amp.autocast(enabled=True): # Mixed precision for performance
+        k1_v, k1_a = model_instance.module.nlkg_derivative(phi_current, phi_dot_current)
+        
+        phi_temp_k2 = phi_current + 0.5 * dt * k1_v
+        phi_dot_temp_k2 = phi_dot_current + 0.5 * dt * k1_a
+        k2_v, k2_a = model_instance.module.nlkg_derivative(phi_temp_k2, phi_dot_temp_k2)
+        
+        phi_temp_k3 = phi_current + 0.5 * dt * k2_v
+        phi_dot_temp_k3 = phi_dot_current + 0.5 * dt * k2_a
+        k3_v, k3_a = model_instance.module.nlkg_derivative(phi_temp_k3, phi_dot_temp_k3)
+        
+        phi_temp_k4 = phi_current + dt * k3_v
+        phi_dot_temp_k4 = phi_dot_current + dt * k3_a
+        k4_v, k4_a = model_instance.module.nlkg_derivative(phi_temp_k4, phi_dot_temp_k4)
+            
+        phi_next = phi_current + (dt / 6.0) * (k1_v + 2*k2_v + 2*k3_v + k4_v)
+        phi_dot_next = phi_dot_current + (dt / 6.0) * (k1_a + 2*k2_a + 2*k3_a + k4_a)
+
+    # No explicit chunking loop here as RK4 is applied to the entire tensor slice
+    # managed by this rank. DDP handles model state, not tensor data sharding for solvers.
+    # For very large N per GPU, internal chunking within this RK4 step might be needed,
+    # but for N=400, H100s should handle it.
+
+    # Optional: Clean up intermediate tensors explicitly if memory is extremely tight,
+    # though Python's GC and PyTorch's caching allocator usually handle this.
+    del k1_v, k1_a, k2_v, k2_a, k3_v, k3_a, k4_v, k4_a
+    del phi_temp_k2, phi_dot_temp_k2, phi_temp_k3, phi_dot_temp_k3, phi_temp_k4, phi_dot_temp_k4
+    if device.type == 'cuda':
+        torch.cuda.synchronize(device) # Ensure operations complete before returning
+        gc.collect() # More aggressive garbage collection
+        torch.cuda.empty_cache()
+        
+    return phi_next, phi_dot_next
+
+def compute_field_energy_lss(phi: torch.Tensor, phi_dot: torch.Tensor,
+                             m_sq_param: float, g_param: float, eta_param: float,
+                             dx: float, c_sq_param: float,
+                             model_instance: EFMModule, rank: int, device: torch.device) -> float:
+    """
+    Computes the total field energy.
+    EFM Energy E = ∫ [1/2 (∂φ/∂t)² + 1/2 c²|∇φ|² + V(φ) - U_gravity(φ)] dV
+    V(φ) = m²/2 φ² + g/4 φ⁴ + η/6 φ⁶. For LSS, m=0.
+    U_gravity corresponds to the potential energy associated with the self-gravity term.
+    A simpler diagnostic is to monitor the L2 norm of φ or φ².
+    The current implementation from the user notebook calculates:
+    Kinetic + Potential + 0.5 * c² * φ * ∇²φ.
+    The term 0.5 * c² * φ * ∇²φ, after integration by parts (∫φ∇²φ dV = -∫|∇φ|² dV + surface terms),
+    would become -0.5 * c² * |∇φ|² if surface terms vanish (true for periodic BCs).
+    So, the intended gradient energy density is likely 0.5 * c² * |∇φ|².
+    Let's use the provided form for consistency with the user's "promising run" but add a note.
+    """
+    total_field_energy_val = torch.tensor(0.0, device=device, dtype=torch.float64)
+    vol_element = dx**3
+
+    # Ensure calculations are done with sufficient precision for summation
+    phi_f32 = phi.to(dtype=torch.float32)
+    phi_dot_f32 = phi_dot.to(dtype=torch.float32)
+    
+    with torch.cuda.amp.autocast(enabled=False): # Use float32 for accumulation
+        kinetic_density = 0.5 * torch.pow(phi_dot_f32, 2)
+        potential_density = 0.5 * m_sq_param * torch.pow(phi_f32, 2) + \
+                           0.25 * g_param * torch.pow(phi_f32, 4) + \
+                           (1.0/6.0) * eta_param * torch.pow(phi_f32, 6)
+        
+        # Gradient energy term:
+        # Standard form: 0.5 * c_sq_param * sum(torch.gradient(phi_f32, spacing=(dx,dx,dx), edge_order=2)[i]**2 for i in range(3))
+        # User notebook form: 0.5 * c_sq_param * (lap_phi * phi_f32).
+        # This relies on ∫φ∇²φ dV = -∫|∇φ|² dV. So if lap_phi is ∇²φ, the term should be -0.5 * c_sq_param * lap_phi * phi_f32.
+        # Let's stick to user's implementation for now for reproducibility of their "promising run".
+        lap_phi = model_instance.module.conv_laplacian(phi_f32) # lap_phi = ∇²φ
+        gradient_like_density = 0.5 * c_sq_param * (lap_phi * phi_f32)
+        # Note: For physical energy, this term should be -0.5 * c_sq_param * (lap_phi * phi_f32)
+        # or more directly 0.5 * c_sq_param * |∇φ|².
+        # The EFM gravitational potential energy part from 8πGkφ² is implicitly part of this field energy
+        # if φ is considered a fundamental field whose energy includes all its interactions.
+
+        chunk_field_energy = torch.sum(kinetic_density + potential_density + gradient_like_density) * vol_element
+
+    if torch.isnan(chunk_field_energy) or torch.isinf(chunk_field_energy):
+        return float('nan')
+    
+    total_field_energy_val = chunk_field_energy.item() # .item() for single value tensor to Python scalar
+    
+    del phi_f32, phi_dot_f32, kinetic_density, potential_density, lap_phi, gradient_like_density
+    if device.type == 'cuda':
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    return total_field_energy_val
+
+# --- Analysis functions (P(k), xi(r)) remain largely the same, operate on CPU with NumPy ---
+# These are typically called infrequently (e.g., at the end of simulation).
+
+def compute_power_spectrum_lss(phi_cpu_np_array: np.ndarray, k_val_range: list,
+                               dx_val_param: float, N_grid_param: int) -> tuple[np.ndarray, np.ndarray]:
+    """Computes the 3D power spectrum P(k) for LSS."""
+    if not isinstance(phi_cpu_np_array, np.ndarray):
+        phi_cpu_np_array = phi_cpu_np_array.cpu().numpy() # Ensure it's a NumPy array on CPU
+
+    # Ensure float32 for FFT for memory/speed, can be float64 if precision is critical
+    phi_fft_transform = fftn(phi_cpu_np_array.astype(np.float32))
+    # Power spectrum |F(φ)|² normalized by N_total_points^2 = (N^3)^2 = N^6 for density
+    power_spectrum_raw_data = np.abs(phi_fft_transform)**2 / (N_grid_param**6)
+    del phi_fft_transform
+    gc.collect()
+
+    # Create k-space grid
+    kx_coords = fftfreq(N_grid_param, d=dx_val_param) * 2 * np.pi
+    ky_coords = fftfreq(N_grid_param, d=dx_val_param) * 2 * np.pi
+    kz_coords = fftfreq(N_grid_param, d=dx_val_param) * 2 * np.pi
+    # Using sparse=True saves memory for meshgrid
+    kxx_mesh, kyy_mesh, kzz_mesh = np.meshgrid(kx_coords, ky_coords, kz_coords, indexing='ij', sparse=True)
+    k_magnitude_values = np.sqrt(kxx_mesh**2 + kyy_mesh**2 + kzz_mesh**2)
+    del kxx_mesh, kyy_mesh, kzz_mesh, kx_coords, ky_coords, kz_coords
+    gc.collect()
+
+    # Binning the power spectrum
+    k_bins_def = np.linspace(k_val_range[0], k_val_range[1], 50) # 50 bins
+    power_binned_values, _, _ = np.histogram(
+        k_magnitude_values.ravel(), bins=k_bins_def,
+        weights=power_spectrum_raw_data.ravel(), density=False
+    )
+    counts_in_bins, _, _ = np.histogram(k_magnitude_values.ravel(), bins=k_bins_def)
+    
+    # Avoid division by zero for empty bins
+    power_binned_final = np.divide(power_binned_values, counts_in_bins,
+                                   out=np.zeros_like(power_binned_values),
+                                   where=counts_in_bins!=0)
+    k_bin_centers_final = (k_bins_def[:-1] + k_bins_def[1:]) / 2
+    
+    del k_magnitude_values, power_spectrum_raw_data, counts_in_bins
+    gc.collect()
+    return k_bin_centers_final, power_binned_final
+
+def compute_correlation_function_lss(phi_cpu_np_array: np.ndarray, dx_val_param: float,
+                                     N_grid_param: int, L_box_param: float) -> tuple[np.ndarray, np.ndarray]:
+    """Computes the 3D correlation function ξ(r) for LSS."""
+    if not isinstance(phi_cpu_np_array, np.ndarray):
+        phi_cpu_np_array = phi_cpu_np_array.cpu().numpy()
+
+    phi_fft_transform = fftn(phi_cpu_np_array.astype(np.float32))
+    power_spectrum_raw_data = np.abs(phi_fft_transform)**2 # P(k) = |F(φ)|²
+    del phi_fft_transform
+    gc.collect()
+    
+    # ξ(r) is the inverse Fourier transform of P(k), properly normalized
+    correlation_func_raw_data = ifftn(power_spectrum_raw_data).real / (N_grid_param**3) # Normalization for ξ(r)
+    del power_spectrum_raw_data
+    gc.collect()
+
+    # Create r-space grid for binning (shifted for ξ(0) at center)
+    indices_shifted = np.fft.ifftshift(np.arange(N_grid_param)) - (N_grid_param // 2) # Centered indices
+    rx_coords = indices_shifted * dx_val_param
+    ry_coords = indices_shifted * dx_val_param
+    rz_coords = indices_shifted * dx_val_param
+    rxx_mesh, ryy_mesh, rzz_mesh = np.meshgrid(rx_coords, ry_coords, rz_coords, indexing='ij', sparse=True)
+    r_magnitude_values = np.sqrt(rxx_mesh**2 + ryy_mesh**2 + rzz_mesh**2)
+    del rx_coords, ry_coords, rz_coords, rxx_mesh, ryy_mesh, rzz_mesh
+    gc.collect()
+
+    r_bins_def = np.linspace(0, L_box_param / 2, 50) # Bins up to half the box size
+    corr_binned_values, _, _ = np.histogram(
+        r_magnitude_values.ravel(), bins=r_bins_def,
+        weights=correlation_func_raw_data.ravel()
+    )
+    counts_in_bins, _, _ = np.histogram(r_magnitude_values.ravel(), bins=r_bins_def)
+    corr_binned_final = np.divide(corr_binned_values, counts_in_bins,
+                                  out=np.zeros_like(corr_binned_values),
+                                  where=counts_in_bins!=0)
+    r_bin_centers_final = (r_bins_def[:-1] + r_bins_def[1:]) / 2
+    
+    del r_magnitude_values, correlation_func_raw_data, counts_in_bins
+    gc.collect()
+    return r_bin_centers_final, corr_binned_final
+
+# %% [markdown]
+# ## Main Simulation Function (DDP Orchestration)
+
+# %% [code]
+def run_simulation_ddp_orchestrator(rank: int, world_size: int, config_params: dict,
+                                    checkpoint_dir: str, data_dir: str):
+    """
+    Orchestrates the DDP simulation for a given rank.
+    Handles initialization, time stepping, diagnostics, checkpointing, and cleanup.
+    """
+    setup_ddp(rank, world_size)
+    device = torch.device(f'cuda:{rank}')
+    torch.cuda.set_device(device) # Set the current CUDA device for this process
+
+    # --- EFM Module Initialization ---
+    # This module contains the physics and will be wrapped by DDP.
+    # Parameters are passed from config_params.
+    efm_physics_model = EFMModule(
+        dx=config_params['dx_Mpc'],
+        m_sq=config_params['m_sim_yr_inv']**2, # m_sim is frequency-like, m_sq is m^2
+        g=config_params['g_sim'],
+        eta=config_params['eta_sim'],
+        k_gravity=config_params['k_efm_gravity_coupling'],
+        G_gravity=config_params['G_sim_Mpc_Msolar_yr'],
+        c_sq=config_params['c_sim_Mpc_yr']**2
+    ).to(device)
+    # Wrap the model with DDP
+    # Note: find_unused_parameters=True might be needed if not all model params are used in forward
+    # For this explicit solver, it might not be strictly necessary if nlkg_derivative uses all params.
+    ddp_efm_model = nn.parallel.DistributedDataParallel(efm_physics_model, device_ids=[rank])
+    ddp_efm_model.eval() # Set to evaluation mode as there's no training loop
+
+    # --- Field Initialization ---
+    # Each rank initializes its own data. For a single coherent simulation,
+    # this initial state would typically be broadcast from rank 0 or loaded identically.
+    # The current `np.random.seed(42 + rank)` implies *different* initial conditions per rank,
+    # meaning independent simulations if not synchronized.
+    # For a *single large DDP simulation*, phi should be identical across ranks after this step.
+    # Let's ensure rank 0 creates the data and broadcasts it.
+    if rank == 0:
+        print(f"Rank 0: Initializing fields for LSS simulation ({config_params['run_id']})...")
+        np.random.seed(42) # Single seed for consistent initial condition
+        initial_phi_np = np.random.randn(config_params['N'], config_params['N'], config_params['N']).astype(np.float16) * config_params['initial_noise_amplitude']
+        phi = torch.from_numpy(initial_phi_np).to(device, dtype=torch.float16)
+        phi_dot = torch.zeros_like(phi, dtype=torch.float16, device=device)
+    else:
+        # Other ranks create empty tensors to receive broadcasted data
+        phi = torch.empty((config_params['N'], config_params['N'], config_params['N']), dtype=torch.float16, device=device)
+        phi_dot = torch.zeros_like(phi, dtype=torch.float16, device=device)
+
+    # Broadcast initial phi and phi_dot from rank 0 to all other ranks
+    dist.broadcast(phi, src=0)
+    dist.broadcast(phi_dot, src=0)
+    dist.barrier() # Ensure all ranks have received the data
+
+    if rank == 0:
+         print(f"LSS fields initialized and broadcast to all GPUs. Phi shape: {phi.shape}, Dtype: {phi.dtype}")
+
+    # Damping mask (currently all ones, so no effective damping)
+    # damping_mask_field = create_damping_mask_lss(config_params['N'], device) # Not used in current RK4
+
+    # --- History and Checkpointing Setup (Rank 0 handles most of this) ---
+    num_hist_points = config_params['T_steps'] // config_params['history_every_n_steps'] + 1
+    field_energy_history = np.zeros(num_hist_points, dtype=np.float64) if rank == 0 else None
+    density_norm_history = np.zeros(num_hist_points, dtype=np.float64) if rank == 0 else None
+    current_hist_idx = 0
+    current_start_step = 0
+
+    # Load checkpoint if available (Rank 0 loads and broadcasts/determines start_step)
+    if rank == 0:
+        checkpoint_file_pattern = os.path.join(checkpoint_dir, f"intermediate_CKPT_{config_params['run_id']}_step_*.npz")
+        list_of_checkpoints = sorted(glob.glob(checkpoint_file_pattern),
+                                     key=lambda f: int(os.path.basename(f).split('_step_')[1].split('.npz')[0]),
+                                     reverse=True)
+        if list_of_checkpoints:
+            latest_ckpt_path = list_of_checkpoints[0]
+            print(f"Rank 0: Found latest intermediate LSS checkpoint: {latest_ckpt_path}")
+            try:
+                ckpt_data = np.load(latest_ckpt_path, allow_pickle=True)
+                phi_cpu = ckpt_data['phi_r_cpu']
+                phi_dot_cpu = ckpt_data['phi_dot_r_cpu']
+                # We need to broadcast these loaded phi and phi_dot to other ranks
+                # For simplicity in DDP, we can load on rank 0 and then broadcast
+                # (This is already handled by the broadcast logic above if we update phi, phi_dot here)
+                current_start_step = ckpt_data['last_step'].item() + 1
+                
+                # Load history if it exists and is correctly sized
+                if 'field_energy_history' in ckpt_data and 'density_norm_history' in ckpt_data:
+                    loaded_fe_hist = ckpt_data['field_energy_history']
+                    loaded_dn_hist = ckpt_data['density_norm_history']
+                    current_hist_idx = current_start_step // config_params['history_every_n_steps']
+                    
+                    # Ensure history arrays are large enough
+                    if current_hist_idx > len(field_energy_history):
+                        field_energy_history = np.resize(field_energy_history, current_hist_idx + (config_params['T_steps'] - current_start_step) // config_params['history_every_n_steps'] + 1)
+                        density_norm_history = np.resize(density_norm_history, current_hist_idx + (config_params['T_steps'] - current_start_step) // config_params['history_every_n_steps'] + 1)
+                    
+                    field_energy_history[:current_hist_idx] = loaded_fe_hist[:current_hist_idx]
+                    density_norm_history[:current_hist_idx] = loaded_dn_hist[:current_hist_idx]
+                
+                print(f"Rank 0: Resuming LSS simulation from step {current_start_step}. History index: {current_hist_idx}.")
+                # These will be broadcasted
+                phi = torch.from_numpy(phi_cpu).to(device, dtype=torch.float16)
+                phi_dot = torch.from_numpy(phi_dot_cpu).to(device, dtype=torch.float16)
+
+                del ckpt_data, phi_cpu, phi_dot_cpu # Free up memory
+                gc.collect()
+            except Exception as e:
+                print(f"Rank 0: Error loading intermediate LSS checkpoint: {e}. Starting from scratch.")
+                current_start_step = 0
+                current_hist_idx = 0
+        else: # No checkpoint found
+            print("Rank 0: No intermediate LSS checkpoint found. Starting from scratch.")
+            if current_hist_idx < num_hist_points: # Initial diagnostic
+                field_energy_history[current_hist_idx] = compute_field_energy_lss(
+                    phi, phi_dot, config_params['m_sim_yr_inv']**2, config_params['g_sim'], config_params['eta_sim'],
+                    config_params['dx_Mpc'], config_params['c_sim_Mpc_yr']**2, ddp_efm_model, rank, device
+                )
+                density_norm_history[current_hist_idx] = torch.sum(phi.to(torch.float32)**2).item() * config_params['k_efm_gravity_coupling']
+                print(f"Rank 0 Initial: FE={field_energy_history[current_hist_idx]:.4g}, DN={density_norm_history[current_hist_idx]:.4g}")
+                current_hist_idx += 1
+    
+    # Broadcast start_step and initial fields (if loaded from checkpoint)
+    # current_start_step is a Python int, needs to be a tensor for broadcast
+    start_step_tensor = torch.tensor(current_start_step, dtype=torch.int64, device=device)
+    dist.broadcast(start_step_tensor, src=0)
+    current_start_step = start_step_tensor.item()
+
+    dist.broadcast(phi, src=0)
+    dist.broadcast(phi_dot, src=0)
+    dist.barrier() # All ranks ready
+
+    # --- Simulation Loop ---
+    numerical_error_flag = False
+    sim_loop_start_time = time.time()
+
+    if current_start_step < config_params['T_steps']:
+        # tqdm progress bar only on rank 0
+        progress_bar = tqdm(range(current_start_step, config_params['T_steps']),
+                            desc=f"LSS Sim ({config_params['run_id']}) Rank {rank}",
+                            initial=current_start_step, total=config_params['T_steps'],
+                            disable=(rank != 0))
+
+        for t_idx in progress_bar:
+            try:
+                # Check for NaN/Inf before update (more robust)
+                if torch.any(torch.isinf(phi)) or torch.any(torch.isnan(phi)) or \
+                   torch.any(torch.isinf(phi_dot)) or torch.any(torch.isnan(phi_dot)):
+                    if rank == 0: print(f"\nERROR Rank {rank}: NaN/Inf in fields BEFORE step {t_idx + 1}! Stopping.")
+                    numerical_error_flag = True
+                    break
+                
+                # RK4 update step
+                phi, phi_dot = update_phi_rk4_lss(
+                    phi, phi_dot, config_params['dt_yr'], ddp_efm_model, rank, device
+                )
+
+                # Check for NaN/Inf after update
+                if torch.any(torch.isinf(phi)) or torch.any(torch.isnan(phi)):
+                    if rank == 0: print(f"\nERROR Rank {rank}: NaN/Inf in phi AFTER step {t_idx + 1}! Stopping.")
+                    numerical_error_flag = True
+                    break
+                
+                # Diagnostics and Checkpointing (Rank 0 only)
+                if rank == 0:
+                    if (t_idx + 1) % config_params['history_every_n_steps'] == 0:
+                        if current_hist_idx < num_hist_points:
+                            current_fe = compute_field_energy_lss(
+                                phi, phi_dot, config_params['m_sim_yr_inv']**2, config_params['g_sim'], config_params['eta_sim'],
+                                config_params['dx_Mpc'], config_params['c_sim_Mpc_yr']**2, ddp_efm_model, rank, device
+                            )
+                            current_dn = torch.sum(phi.to(torch.float32)**2).item() * config_params['k_efm_gravity_coupling']
+                            field_energy_history[current_hist_idx] = current_fe
+                            density_norm_history[current_hist_idx] = current_dn
+                            progress_bar.set_postfix({'E_field': f'{current_fe:.3e}', 'Norm': f'{current_dn:.3e}'})
+                            if np.isnan(current_fe) or np.isinf(current_fe):
+                                print(f"LSS Instability (Rank 0): Energy NaN/Inf at step {t_idx+1}. Stop.")
+                                numerical_error_flag = True
+                            current_hist_idx += 1
+                    
+                    if (t_idx + 1) % config_params['checkpoint_every_n_steps'] == 0 and (t_idx + 1) < config_params['T_steps']:
+                        intermediate_ckpt_file = os.path.join(checkpoint_dir, f"intermediate_CKPT_{config_params['run_id']}_step_{t_idx+1}.npz")
+                        try:
+                            np.savez_compressed(intermediate_ckpt_file,
+                                                phi_r_cpu=phi.cpu().numpy(), phi_dot_r_cpu=phi_dot.cpu().numpy(),
+                                                last_step=t_idx, config_lss_saved=config_params,
+                                                field_energy_history=field_energy_history[:current_hist_idx],
+                                                density_norm_history=density_norm_history[:current_hist_idx])
+                        except Exception as e_save:
+                            print(f"Rank 0: Error saving intermediate LSS checkpoint: {e_save}")
+                
+                # Broadcast error flag from rank 0 (or any rank that detected an error)
+                error_tensor = torch.tensor(float(numerical_error_flag), device=device)
+                dist.all_reduce(error_tensor, op=dist.ReduceOp.MAX) # If any rank has error, all get it
+                if error_tensor.item() > 0:
+                    numerical_error_flag = True # Update local flag
+                    if rank == 0: print(f"Propagated error detected at step {t_idx+1}. Stopping simulation.")
+                    break
+
+            except Exception as e_loop:
+                if rank == 0:
+                    print(f"ERROR Rank {rank} in LSS sim loop at step {t_idx + 1}: {e_loop}")
+                    import traceback
+                    traceback.print_exc()
+                numerical_error_flag = True
+                break
+        
+        if rank == 0 and progress_bar is not None: progress_bar.close()
+
+    dist.barrier() # Ensure all ranks complete the loop or error out together
+    if rank == 0:
+        sim_duration = time.time() - sim_loop_start_time
+        print(f"LSS simulation loop finished/resumed in {sim_duration:.2f} s. Numerical Error: {numerical_error_flag}")
+
+    # --- Final Save and Cleanup (Rank 0) ---
+    if rank == 0:
+        final_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        final_ckpt_name = os.path.join(checkpoint_dir, f"FINAL_CKPT_{config_params['run_id']}_{final_ts}.npz")
+        try:
+            # Ensure final diagnostic point is captured if sim didn't end exactly on history step
+            if not numerical_error_flag and current_start_step < config_params['T_steps'] and \
+               (config_params['T_steps'] % config_params['history_every_n_steps'] != 0 or current_hist_idx == 0) and \
+               current_hist_idx < len(field_energy_history):
+                field_energy_history[current_hist_idx] = compute_field_energy_lss(
+                     phi, phi_dot, config_params['m_sim_yr_inv']**2, config_params['g_sim'], config_params['eta_sim'],
+                     config_params['dx_Mpc'], config_params['c_sim_Mpc_yr']**2, ddp_efm_model, rank, device
+                )
+                density_norm_history[current_hist_idx] = torch.sum(phi.to(torch.float32)**2).item() * config_params['k_efm_gravity_coupling']
+                current_hist_idx +=1 # Increment after saving the last point
+
+            np.savez_compressed(final_ckpt_name,
+                                phi_r_final_cpu=phi.cpu().numpy(),
+                                phi_dot_r_final_cpu=phi_dot.cpu().numpy(),
+                                field_energy_history=field_energy_history[:current_hist_idx], # Save only populated part
+                                density_norm_history=density_norm_history[:current_hist_idx],
+                                config_lss=config_params,
+                                sim_had_numerical_error=numerical_error_flag)
+            print(f"Rank 0: LSS final state saved to {final_ckpt_name}")
+        except Exception as e_final_save:
+            print(f"Rank 0: Error saving final LSS checkpoint: {e_final_save}")
+
+    del phi, phi_dot, ddp_efm_model, efm_physics_model
+    if device.type == 'cuda':
+        gc.collect()
+        torch.cuda.empty_cache()
+    cleanup_ddp()
+    if rank == 0: print(f"Rank {rank} finished and cleaned up.")
+
+# %% [markdown]
+# ## Run Simulation and Analysis Orchestration
+
+# %% [code]
+def main_lss_simulation_orchestrator():
+    """
+    Main function to orchestrate the DDP simulation run and subsequent analysis.
+    """
+    world_size_val = torch.cuda.device_count()
+    if world_size_val < 1: # Fallback to CPU if no GPUs, though this notebook is HPC GPU focused
+        print("No GPUs available for DDP. This notebook is designed for multi-GPU HPC.")
+        # Optionally, one could run a smaller, single-process version here for testing.
+        return
+
+    # --- Run DDP Simulation ---
+    # Uses torch.multiprocessing.spawn to launch DDP processes
+    mp.spawn(run_simulation_ddp_orchestrator,
+             args=(world_size_val, config_lss_run, checkpoint_path_lss_sim, data_path_lss_sim),
+             nprocs=world_size_val,
+             join=True)
+
+    print("\n--- LSS Final Analysis and Plotting (executed by main process after DDP completion) ---")
+    
+    # --- Load Data for Plotting (from Rank 0's saved checkpoint) ---
+    plot_config = config_lss_run # Default to current config if no checkpoint loads new one
+    hist_fe_plot = np.array([0.0])
+    hist_dn_plot = np.array([0.0])
+    phi_final_plot = None
+    plot_data_loaded = False
+
+    # Find the latest FINAL checkpoint for this run_id
+    final_ckpt_pattern = os.path.join(checkpoint_path_lss_sim, f"FINAL_CKPT_{config_lss_run['run_id']}_*.npz")
+    final_ckpt_files = sorted(glob.glob(final_ckpt_pattern), key=os.path.getmtime, reverse=True)
+    
+    if not final_ckpt_files:
+        print(f"No FINAL LSS checkpoint found for run_id {config_lss_run['run_id']}. Trying latest intermediate...")
+        intermediate_ckpt_pattern = os.path.join(checkpoint_path_lss_sim, f"intermediate_CKPT_{config_lss_run['run_id']}_step_*.npz")
+        final_ckpt_files = sorted(glob.glob(intermediate_ckpt_pattern),
+                                  key=lambda f: int(os.path.basename(f).split('_step_')[1].split('.npz')[0]),
+                                  reverse=True) # Get most recent step
+        if not final_ckpt_files:
+            print(f"No intermediate LSS checkpoint found either for run_id {config_lss_run['run_id']}.")
+
+    if final_ckpt_files:
+        latest_final_ckpt_path = final_ckpt_files[0]
+        print(f"Loading LSS data for plotting from: {latest_final_ckpt_path}")
+        try:
+            data_for_plot = np.load(latest_final_ckpt_path, allow_pickle=True)
+            hist_fe_plot = data_for_plot['field_energy_history']
+            hist_dn_plot = data_for_plot['density_norm_history']
+            
+            phi_data_key_plot = 'phi_r_final_cpu' if 'phi_r_final_cpu' in data_for_plot else 'phi_r_cpu'
+            phi_final_plot = data_for_plot[phi_data_key_plot] # This is a NumPy array
+            
+            config_key_plot = 'config_lss' if 'config_lss' in data_for_plot else 'config_lss_saved'
+            if config_key_plot in data_for_plot:
+                plot_config = data_for_plot[config_key_plot].item() # Ensure it's a dict
+            plot_data_loaded = True
+            print("LSS checkpoint data successfully loaded for plotting.")
+            if 'sim_had_numerical_error' in data_for_plot and data_for_plot['sim_had_numerical_error']:
+                print("WARNING: Loaded checkpoint indicates a numerical error occurred during simulation.")
+
+        except Exception as e_load_plot:
+            print(f"Error loading LSS data for plotting: {e_load_plot}")
+    else:
+        print(f"No checkpoint files found for run_id {config_lss_run['run_id']} to plot.")
+
+    # --- Plotting ---
+    if plot_data_loaded and len(hist_fe_plot) > 0:
+        num_hist_points_plot = len(hist_fe_plot)
+        steps_recorded_plot = np.arange(num_hist_points_plot) * plot_config.get('history_every_n_steps', 100)
+
+        plt.figure(figsize=(14, 6))
+        plt.subplot(1, 2, 1)
+        plt.plot(steps_recorded_plot, hist_fe_plot, marker='.')
+        plt.title(f"Field Energy Evolution (N={plot_config.get('N')})")
+        plt.xlabel('Simulation Step')
+        plt.ylabel('Field Energy (Simulation Units)')
+        plt.grid(True); plt.ticklabel_format(style='sci', axis='y', scilimits=(-3,3), useMathText=True)
+
+        plt.subplot(1, 2, 2)
+        plt.plot(steps_recorded_plot, hist_dn_plot, marker='.')
+        plt.title(f"Density Norm Evolution (N={plot_config.get('N')})")
+        plt.xlabel('Simulation Step')
+        plt.ylabel('kφ² Norm (Simulation Units)')
+        plt.grid(True); plt.ticklabel_format(style='sci', axis='y', scilimits=(-3,3), useMathText=True)
+        
+        plt.tight_layout()
+        plt.suptitle(f"LSS Evolution Metrics ({plot_config.get('run_id', 'N/A')})", fontsize=14, y=1.02)
+        plt.savefig(os.path.join(data_path_lss_sim, f"lss_evolution_metrics_{plot_config.get('run_id', 'final_plot')}.png"))
+        plt.show(); plt.close()
+
+        if num_hist_points_plot > 1:
+            print(f"\n--- Final LSS Properties from Plot Data ({plot_config.get('run_id')}) ---")
+            print(f"Final Field Energy: {hist_fe_plot[-1]:.4g}")
+            print(f"Final Density Norm (kφ²): {hist_dn_plot[-1]:.4g}")
+            # Check for field decay
+            initial_density_norm = plot_config.get('k_efm_gravity_coupling', 0.1) * \
+                                   (plot_config.get('initial_noise_amplitude', 0.01)**2 * plot_config.get('N')**3)
+            if hist_dn_plot[-1] < 1e-7 * initial_density_norm :
+                 print("WARNING: Field appears to have decayed to very low values based on density norm!")
+
+        # --- P(k) and xi(r) Analysis ---
+        if phi_final_plot is not None and phi_final_plot.ndim == 3 and phi_final_plot.shape[0] > 1 and np.max(np.abs(phi_final_plot)) > 1e-7:
+            print("\nComputing P(k) and xi(r) for LSS final state...")
+            # Define k_range for P(k). Min k ~ 2π/L, Max k ~ Nyquist ~ π/dx
+            k_min_plot = 2 * np.pi / plot_config['L_Mpc'] * 1.5 # Start slightly above fundamental mode
+            k_max_plot = np.pi / plot_config['dx_Mpc'] * 0.5   # Go up to half Nyquist for better visuals
+            
+            k_bins_plot, pk_values_plot = compute_power_spectrum_lss(
+                phi_final_plot, k_val_range=[k_min_plot, k_max_plot],
+                dx_val_param=plot_config['dx_Mpc'], N_grid_param=plot_config['N']
+            )
+            r_bins_plot, xi_values_plot = compute_correlation_function_lss(
+                phi_final_plot, dx_val_param=plot_config['dx_Mpc'],
+                N_grid_param=plot_config['N'], L_box_param=plot_config['L_Mpc']
+            )
+            del phi_final_plot # Free memory
+            gc.collect()
+
+            plt.figure(figsize=(16,6))
+            plt.subplot(1,2,1)
+            plt.loglog(k_bins_plot, pk_values_plot)
+            plt.title('LSS Power Spectrum P(k)')
+            plt.xlabel('k (Mpc$^{-1}$)')
+            plt.ylabel('P(k) (Mpc$^3$)'); plt.grid(True, which="both", linestyle=":")
+            # EFM Characteristic Scales
+            plt.axvline(2*np.pi/147, color='r', linestyle='--', label='~147 Mpc (EFM n’=4 BAO-like)')
+            plt.axvline(2*np.pi/628, color='g', linestyle='--', label='~628 Mpc (EFM n’=1 Primary)')
+            plt.legend()
+
+            plt.subplot(1,2,2)
+            plt.plot(r_bins_plot, xi_values_plot)
+            plt.title('LSS Correlation Function $\\xi$(r)')
+            plt.xlabel('r (Mpc)')
+            plt.ylabel('$\\xi$(r)'); plt.grid(True, linestyle=":")
+            plt.axhline(0, color='black', linewidth=0.5)
+            plt.axvline(147, color='r', linestyle='--', label='~147 Mpc (EFM n’=4 BAO-like)')
+            plt.axvline(628, color='g', linestyle='--', label='~628 Mpc (EFM n’=1 Primary)')
+            # Dynamic y-limits for xi(r)
+            if len(xi_values_plot[1:]) > 0: # Exclude xi(0) if it's very large
+                abs_max_xi_plot = np.max(np.abs(xi_values_plot[1:]))
+                plt.ylim(max(-1.5 * abs_max_xi_plot, np.min(xi_values_plot) - 0.1*abs_max_xi_plot ), 
+                         min( 1.5 * abs_max_xi_plot, np.max(xi_values_plot) + 0.1*abs_max_xi_plot ))
+            plt.legend()
+
+            plt.tight_layout()
+            plt.suptitle(f"LSS Observables ({plot_config.get('run_id')})", fontsize=14, y=1.02)
+            plt.savefig(os.path.join(data_path_lss_sim, f"lss_observables_{plot_config.get('run_id', 'final_plot')}.png"))
+            plt.show(); plt.close()
+
+            if len(xi_values_plot) > 1 and np.any(np.abs(xi_values_plot[1:]) > 1e-6): # Check if xi is non-trivial
+                print(f"Correlation peak (max of abs after r=0) near r ~ {r_bins_plot[np.argmax(np.abs(xi_values_plot[1:]))+1]:.1f} Mpc")
+            else:
+                print("Correlation function ξ(r) is effectively zero or flat after r=0.")
+            if len(pk_values_plot) > 0 and np.any(pk_values_plot > 1e-9): # Check if P(k) is non-trivial
+                peak_k_idx = np.argmax(pk_values_plot)
+                print(f"Power spectrum P(k) peak (max value) at k ~ {k_bins_plot[peak_k_idx]:.3f} Mpc^-1 (scale ~ {2*np.pi/k_bins_plot[peak_k_idx]:.1f} Mpc)")
+            else:
+                print("Power spectrum P(k) is effectively zero.")
+        else:
+            print("Final LSS field data not suitable for P(k)/xi(r) plotting (e.g., decayed to zero or not 3D).")
+    else:
+        print("LSS simulation history/final data not available or error occurred during loading. Cannot plot full analysis.")
+
+    if torch.cuda.is_available(): torch.cuda.empty_cache()
+    print("LSS plotting and analysis main function finished.")
+
+if __name__ == '__main__':
+    # This block ensures main_lss_simulation_orchestrator() is called only when the script is executed directly.
+    # Necessary for mp.spawn to work correctly.
+    main_lss_simulation_orchestrator()
