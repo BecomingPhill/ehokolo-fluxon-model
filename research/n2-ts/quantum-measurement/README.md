@@ -1,12 +1,15 @@
-# Densities
+# Quantum Measurement
 
 ## Overview
-Research area derived from EFM V4: Densities
+Research area derived from EFM V4: Quantum Measurement
+
+**Density**: Time-Space (N2)
 
 ## Contents
 - `notebooks/` - Jupyter notebooks for simulations and analysis
-- `results/` - Generated plots, data, and media files
+- `media/` - Generated plots, data, and media files
 - `papers/` - LaTeX papers and documentation
+- `pdf/` - Compiled PDF versions of papers
 
 ## Current Status
 [To be updated with current research status]

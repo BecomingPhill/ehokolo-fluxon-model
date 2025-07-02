@@ -1,12 +1,15 @@
-# Dimensonless
+# Particle Physics
 
 ## Overview
-Research area derived from EFM V4: Dimensonless
+Research area derived from EFM V4: Particle Physics
+
+**Density**: Time-Space (N2)
 
 ## Contents
 - `notebooks/` - Jupyter notebooks for simulations and analysis
-- `results/` - Generated plots, data, and media files
+- `media/` - Generated plots, data, and media files
 - `papers/` - LaTeX papers and documentation
+- `pdf/` - Compiled PDF versions of papers
 
 ## Current Status
 [To be updated with current research status]

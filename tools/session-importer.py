@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LLM Session Importer for Ehokolo Fluxon Model Repository
+LLM Session Importer for Eholoko Fluxon Model Repository
 
 This script helps import and organize LLM chat sessions from Google AI Studio and Grok.
 """

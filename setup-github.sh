@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# GitHub Repository Setup Script for Ehokolo Fluxon Model
+# GitHub Repository Setup Script for Eholoko Fluxon Model
 # This script helps initialize the GitHub repository
 
-echo "=== Ehokolo Fluxon Model GitHub Setup ==="
+echo "=== Eholoko Fluxon Model GitHub Setup ==="
 echo ""
 
 # Check if git is installed
@@ -14,7 +14,7 @@ fi
 
 # Check if we're in the right directory
 if [ ! -f "README.md" ]; then
-    echo "❌ Please run this script from the ehokolo-fluxon-model directory"
+    echo "❌ Please run this script from the Eholoko-fluxon-model directory"
     exit 1
 fi
 
@@ -43,7 +43,7 @@ else
     
     # Make initial commit
     echo "Making initial commit..."
-    git commit -m "Initial commit: Ehokolo Fluxon Model research repository
+    git commit -m "Initial commit: Eholoko Fluxon Model research repository
     
     - Organized hypothesis papers by density (N1-N3)
     - Structured current research from EFM V4
@@ -59,13 +59,13 @@ echo ""
 echo "=== Next Steps ==="
 echo "1. Create a new repository on GitHub:"
 echo "   - Go to https://github.com/new"
-echo "   - Name: ehokolo-fluxon-model"
-echo "   - Description: Comprehensive research repository for the Ehokolo Fluxon Model"
+echo "   - Name: Eholoko-fluxon-model"
+echo "   - Description: Comprehensive research repository for the Eholoko Fluxon Model"
 echo "   - Make it public"
 echo "   - Don't initialize with README (we already have one)"
 echo ""
 echo "2. Connect your local repository to GitHub:"
-echo "   git remote add origin https://github.com/YOUR_USERNAME/ehokolo-fluxon-model.git"
+echo "   git remote add origin https://github.com/YOUR_USERNAME/Eholoko-fluxon-model.git"
 echo "   git branch -M main"
 echo "   git push -u origin main"
 echo ""

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Density Classifier for Ehokolo Fluxon Model Repository
+Density Classifier for Eholoko Fluxon Model Repository
 
 This script categorizes hypothesis papers by density based on their content and keywords.
 """
