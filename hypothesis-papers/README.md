@@ -4,70 +4,16 @@ This directory contains all hypothesis papers for the Ehokolo Fluxon Model, orga
 
 ## Density Organization
 
-### N1 (S/T) - Time/Space ratio > 1
-**Description**: Time-dominant density containing astrophysical and gravitational phenomena.
+### N1 (S/T) - Space over Time 
+**Description**: Responsible for large scale physical fomration, atsrophysics, LSS, strong force interactions, CMB
 
-#### Astrophysics
-- Black hole structures and gravitational lensing
-- Black hole evaporation and Hawking radiation
-- White holes and high-energy transients
-- Star formation and galactic evolution
-- 3D simulations of atomic structures, black holes, and gravitational waves
+### N2 (T/S) - Time over Space
+**Description**: Responsible for quantum scale phenomena, weak force, high energy phenomana, mass emergence
 
-#### Cosmology
-- Unified framework for space-time, electromagnetism, and gravity
-- Inflationary dynamics and cosmic fluxonic coherence
-- CMB and large-scale structure formation
-- Hubble tension resolution
-- Solar system formation and evolution
-- Galaxy formation and interactions
+### N3 (S=T) - Space equals Time
+**Description**: Responsible for all optical scale phenomena, electromagnetism, biology, conciousness
 
-#### Gravitational
-- Zero-point energy and emergent gravity
-- Gravitational vehicles and wormhole dynamics
-- Soliton-based unification of quantum and gravitational dynamics
-- Gravitational shielding experiments
-- Soliton collisions and gravitational implications
 
-### N2 (T/S) - Space/Time ratio > 1
-**Description**: Space-dominant density containing quantum and nuclear phenomena.
-
-#### Quantum
-- Quantum measurement and deterministic wavefunction evolution
-- Quantum field theory and force unification
-- Memory and computation via solitonic dynamics
-- Time dilation and causal reversibility
-
-#### Nuclear
-- Nuclear power and fusion approaches
-- Particle properties and interactions
-- Grand unification of forces
-- Origin of particles and forces
-
-### N3 (S=T) - Space = Time
-**Description**: Balanced density containing electromagnetic, atomic, and biological phenomena.
-
-#### Electromagnetic
-- Lagrangian validation and electromagnetic interactions
-- Solitonic waves as foundation for electromagnetic theory
-- Electromagnetism derivation from solitonic wave interactions
-- Electromagnetic interference patterns
-
-#### Atomic
-- Matter formation and atomic structure
-- Mass generation via ehokolon self-interactions
-- Atomic and molecular physics
-- Bioelectronics and neuromorphic pathways
-
-#### Chemistry
-- Matter formation across atomic, molecular, and macroscopic scales
-- Covalent bonding and chemical emergence
-- Superconductivity mechanisms
-
-#### Biology
-- Physical basis for consciousness from solitonic field dynamics
-- Origins of consciousness and intelligence
-- Biological harmonics and neuromorphic pathways
 
 ## Classification Summary
 

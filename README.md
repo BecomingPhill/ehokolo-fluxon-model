@@ -1,26 +1,28 @@
 # Eholoko Fluxon Model (EFM)
 
-A comprehensive research repository for the Eholoko Fluxon Model, a unified theory of cosmology and physics that proposes a solitonic foundation for understanding the fundamental nature of reality.
+A comprehensive research repository for the Eholoko Fluxon Model, a theory of cosmology and physics that proposes a eholokon (solitonic) foundation for understanding the fundamental nature of reality.
 
 **Author**: Tshuutheni Emvula  
 **Repository**: https://github.com/BecomingPhill/ehokolo-fluxon-model
 
 ## Overview
 
-The Eholoko Fluxon Model (EFM) represents a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of fundamental solitonic entities called "ehokolons" across different density states. This model unifies quantum mechanics, relativity, and cosmology through a single mathematical framework.
+The Eholoko (Oshiwambo meaning 'appearance') Fluxon Model (EFM) attempts at a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of scalar motion as proposed by Dewey B. Larson's Recirporcal System Theory. This scalar motion represents excitations of an underlying energy field I have termed the "ehokolo fluxon field" which I propose organizes into quantized energy levels or 'densities'. This model may unify quantum mechanics, relativity, and cosmology through a single mathematical framework.
+
+It is a living body of work that uses LLMs and computational tools to attempt at conducting science and recognizes all the issues implied. As such, scrutiny is welcomed. 
 
 ## Repository Structure
 
-This repository is organized according to the 8 densities of the Eholoko Fluxon Model, where each density represents different ratios of Space (S) to Time (T):
+This repository is organized according to the 8 densities of the Eholoko Fluxon Model, where each density represents a quantized energy level of the underlying phi field:
 
 ### Known Densities
 
-- **N1 (S/T)**: Time/Space ratio > 1
+- **N1 (S/T)**: Time/Space 
   - Astrophysics, cosmology, large-scale structure
   - Gravitational phenomena, black holes, white holes
   - Solar system formation and evolution
   
-- **N2 (T/S)**: Space/Time ratio > 1
+- **N2 (T/S)**: Space/Time 
   - Quantum mechanics, measurement theory
   - Nuclear forces, particle physics
   - Grand unification theories
