@@ -7,7 +7,9 @@ A comprehensive research repository for the Eholoko Fluxon Model, a theory of co
 
 ## Overview
 
-The Eholoko (Oshiwambo meaning 'appearance') Fluxon Model (EFM) attempts at a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of scalar motion as proposed by Dewey B. Larson's Recirporcal System Theory. This scalar motion represents excitations of an underlying energy field I have termed the "ehokolo fluxon field" which I propose organizes into quantized energy levels or 'densities'. This model may unify quantum mechanics, relativity, and cosmology through a single mathematical framework.
+The Eholoko (Oshiwambo meaning 'appearance') Fluxon Model (EFM) attempts at a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of scalar motion as proposed by Dewey B. Larson's Recirporcal System Theory. This scalar motion represents excitations of an underlying energy field I have termed the 'Ehokolo Fluxon Field' (phi) which organizes into quantized energy levels or 'densities' which are configuartions of the reciporcity principle x· t= k. These densities interact in a recirpocal and geometrical manner. 
+
+This field's behaviour can be described by a non linear Klein-Gordon equation that describes quantum mechanics, relativity, and cosmological phenomena through a single mathematical framework that is deterministic and computationally verifiable.
 
 It is a living body of work that uses LLMs and computational tools to attempt at conducting science and recognizes all the issues implied. As such, scrutiny is welcomed. 
 
@@ -18,19 +20,17 @@ This repository is organized according to the 8 densities of the Eholoko Fluxon 
 ### Known Densities
 
 - **N1 (S/T)**: Time/Space 
-  - Astrophysics, cosmology, large-scale structure
+  - Astrophysics, cosmology, large-scale structure formation
   - Gravitational phenomena, black holes, white holes
-  - Solar system formation and evolution
-  
+
 - **N2 (T/S)**: Space/Time 
-  - Quantum mechanics, measurement theory
+  - Quantum mechanics, mass measurement theory
   - Nuclear forces, particle physics
-  - Grand unification theories
-  
+
 - **N3 (S=T)**: Space = Time
   - Electromagnetic forces, visible spectrum
   - Atomic structure, chemistry, material science
-  - Biology, consciousness, bioelectronics
+  - Biology, consciousness, bioelectronics, time measurement theory
 
 ### Future Densities
 
@@ -58,19 +58,19 @@ Organized chat transcripts from AI research sessions:
 - **grok/**: Grok AI sessions
 - **private/**: Private sessions (not included in public repository)
 
-## Key Research Areas
+## Key Known Research Areas
 
-### N1 - Space/Time Dominant
+### N1 - S/T (Space over Time)
 - **Cosmology**: Large-scale structure formation, CMB analysis, Hubble tension resolution
 - **Astrophysics**: Black hole dynamics, gravitational waves, stellar evolution
 - **Gravitational Physics**: Emergent gravity, spacetime curvature alternatives
 
-### N2 - Time/Space Dominant  
+### N2 - Time/Space (Time over Spcae)
 - **Quantum Mechanics**: Measurement theory, wavefunction evolution
 - **Particle Physics**: Mass generation, force unification, nuclear interactions
 - **Quantum Field Theory**: Ehokolon field dynamics and interactions
 
-### N3 - Space=Time
+### N3 - Space=Time (Space equals Time)
 - **Atomic Physics**: Matter formation, atomic structure, electron dynamics
 - **Electromagnetism**: Maxwell's equations derivation, electromagnetic interactions
 - **Chemistry**: Molecular bonding, chemical reactions, material properties
@@ -80,7 +80,7 @@ Organized chat transcripts from AI research sessions:
 
 1. **Hypothesis Development**: Start with theoretical papers in `/hypothesis-papers/`
 2. **LLM Research**: Use AI sessions to synthesize information and derive new insights
-3. **Simulation & Analysis**: Develop Jupyter notebooks for computational validation
+3. **Simulation & Analysis**: Develop Jupyter notebooks for computational validation 
 4. **Publication**: Generate new papers based on research findings
 5. **Validation**: Compare predictions with observational data and experimental results
 
