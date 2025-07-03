@@ -1,0 +1,92 @@
+# Full Python Implementation for Fluxon Field Simulation with Maxwell-Ampère Verification
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Define simulation parameters
+Nx, Ny = 50, 50  # Reduced grid size for efficiency
+Nt = 300  # Time steps
+L = 10.0  # Physical domain size
+dx, dy = L / Nx, L / Ny
+dt = 0.002  # Time step
+
+# Physical constants
+mu0 = 1.0  # Magnetic permeability (normalized)
+epsilon0 = 1.0  # Electric permittivity (normalized)
+q = 1.0  # Fluxon charge
+m = 1.0  # Mass-like term
+g = 1.0  # Nonlinearity coefficient
+
+# Initialize fields
+phi = np.exp(-((np.linspace(-L/2, L/2, Nx)[:, None]**2 + np.linspace(-L/2, L/2, Ny)[None, :]**2) / 2)) * np.cos(5 * np.linspace(-L/2, L/2, Ny))
+A = np.zeros((Nx, Ny, 2))  # Vector potential A = (Ax, Ay)
+E = np.zeros((Nx, Ny, 2))  # Electric field E = (Ex, Ey)
+Bz = np.zeros((Nx, Ny))  # Magnetic field component Bz
+J = np.zeros((Nx, Ny, 2))  # Current density J = (Jx, Jy)
+
+# Time evolution loop with Maxwell-Ampère validation
+for n in range(Nt):
+    # Compute Laplacian of phi
+    d2phi_dx2 = (np.roll(phi, -1, axis=0) - 2 * phi + np.roll(phi, 1, axis=0)) / dx**2
+    d2phi_dy2 = (np.roll(phi, -1, axis=1) - 2 * phi + np.roll(phi, 1, axis=1)) / dy**2
+
+    # Update fluxon field using nonlinear Klein-Gordon equation
+    phi_new = phi + dt**2 * (d2phi_dx2 + d2phi_dy2 - m**2 * phi - g * phi**3)
+
+    # Compute electric field using Maxwell definitions
+    E[:, :, 0] = - (np.roll(phi, -1, axis=0) - np.roll(phi, 1, axis=0)) / (2 * dx) - (A[:, :, 0] / dt)
+    E[:, :, 1] = - (np.roll(phi, -1, axis=1) - np.roll(phi, 1, axis=1)) / (2 * dy) - (A[:, :, 1] / dt)
+
+    # Compute magnetic field using B = ∇ × A
+    Bz = (np.roll(A[:, :, 1], -1, axis=0) - np.roll(A[:, :, 1], 1, axis=0)) / (2 * dx) - (np.roll(A[:, :, 0], -1, axis=1) - np.roll(A[:, :, 0], 1, axis=1)) / (2 * dy)
+
+    # Compute current density J from gauge coupling
+    J[:, :, 0] = q * (phi * (np.roll(phi, -1, axis=0) - np.roll(phi, 1, axis=0)) / (2 * dx))
+    J[:, :, 1] = q * (phi * (np.roll(phi, -1, axis=1) - np.roll(phi, 1, axis=1)) / (2 * dy))
+
+    # Maxwell-Ampère equation check: ∇ × B = μ0 J + μ0 ε0 ∂E/∂t
+    maxwell_ampere_x = (np.roll(Bz, -1, axis=1) - np.roll(Bz, 1, axis=1)) / (2 * dy)
+    maxwell_ampere_y = -(np.roll(Bz, -1, axis=0) - np.roll(Bz, 1, axis=0)) / (2 * dx)
+    maxwell_ampere_x += mu0 * J[:, :, 0] + mu0 * epsilon0 * (E[:, :, 0] / dt)
+    maxwell_ampere_y += mu0 * J[:, :, 1] + mu0 * epsilon0 * (E[:, :, 1] / dt)
+
+    # Update vector potential A dynamically
+    A[:, :, 0] += dt * E[:, :, 0]
+    A[:, :, 1] += dt * E[:, :, 1]
+
+    # Update fields
+    phi = phi_new
+
+# Visualization of field dynamics
+fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+
+# Electric Field
+im1 = axes[0, 0].imshow(E[:, :, 0], extent=(-L/2, L/2, -L/2, L/2), cmap='coolwarm')
+axes[0, 0].set_title('Electric Field Ex')
+fig.colorbar(im1, ax=axes[0, 0])
+
+im2 = axes[0, 1].imshow(E[:, :, 1], extent=(-L/2, L/2, -L/2, L/2), cmap='coolwarm')
+axes[0, 1].set_title('Electric Field Ey')
+fig.colorbar(im2, ax=axes[0, 1])
+
+# Magnetic Field
+im3 = axes[0, 2].imshow(Bz, extent=(-L/2, L/2, -L/2, L/2), cmap='coolwarm')
+axes[0, 2].set_title('Magnetic Field Bz')
+fig.colorbar(im3, ax=axes[0, 2])
+
+# Current Density
+im4 = axes[1, 0].imshow(J[:, :, 0], extent=(-L/2, L/2, -L/2, L/2), cmap='coolwarm')
+axes[1, 0].set_title('Current Density Jx')
+fig.colorbar(im4, ax=axes[1, 0])
+
+im5 = axes[1, 1].imshow(J[:, :, 1], extent=(-L/2, L/2, -L/2, L/2), cmap='coolwarm')
+axes[1, 1].set_title('Current Density Jy')
+fig.colorbar(im5, ax=axes[1, 1])
+
+# Maxwell-Ampère Check
+im6 = axes[1, 2].imshow(maxwell_ampere_x + maxwell_ampere_y, extent=(-L/2, L/2, -L/2, L/2), cmap='coolwarm')
+axes[1, 2].set_title('Maxwell-Ampère Residual')
+fig.colorbar(im6, ax=axes[1, 2])
+
+plt.tight_layout()
+plt.show()
