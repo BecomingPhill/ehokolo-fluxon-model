@@ -118,4 +118,7 @@ logs/
 # Note: PDFs are included in the repository as they are part of the research documentation
 # and are covered by CC BY-NC-ND 4.0 license
 *.dvi
-*.ps 
+*.ps
+
+# Project setup scripts
+setup-github.sh 
