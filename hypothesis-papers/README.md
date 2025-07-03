@@ -1,6 +1,11 @@
 # Hypothesis Papers Index
 
+> **Licensing Notice:**
+> - Code and simulations: GNU General Public License v3 ([LICENSE](../LICENSE))
+> - Papers and documentation: Creative Commons BY-NC-ND 4.0 ([LICENSE-CC-BY-NC-ND](../LICENSE-CC-BY-NC-ND))
+
 This directory contains all hypothesis papers for the Ehokolo Fluxon Model, organized by density according to the Reciprocal System Theory.
+
 
 ## Density Organization
 
@@ -14,12 +19,11 @@ This directory contains all hypothesis papers for the Ehokolo Fluxon Model, orga
 **Description**: Responsible for all optical scale phenomena, electromagnetism, biology, conciousness
 
 
-
 ## Classification Summary
 
-- **N1 (S/T)**: 109 papers - Astrophysics, cosmology, gravitational phenomena
-- **N2 (T/S)**: 18 papers - Quantum mechanics, nuclear forces, particle physics  
-- **N3 (S=T)**: 30 papers - Electromagnetic, atomic, chemistry, biology
+- **N1 (S/T)**: Astrophysics, cosmology, gravitational phenomena
+- **N2 (T/S)**: Quantum mechanics, mass emergence, particle physics  
+- **N3 (S=T)**: Electromagnetic, atomic, chemistry, biology
 
 ## Unclassified Papers
 

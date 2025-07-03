@@ -1,5 +1,9 @@
 # Eholoko Fluxon Model (EFM)
 
+> **Licensing Notice:**
+> - Code and simulations: GNU General Public License v3 ([LICENSE](LICENSE))
+> - Papers and documentation: Creative Commons BY-NC-ND 4.0 ([LICENSE-CC-BY-NC-ND](LICENSE-CC-BY-NC-ND))
+
 A comprehensive research repository for the Eholoko Fluxon Model, a theory of cosmology and physics that proposes a eholokon (solitonic) foundation for understanding the fundamental nature of reality.
 
 **Author**: Tshuutheni Emvula  
