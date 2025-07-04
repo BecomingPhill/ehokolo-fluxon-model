@@ -19,7 +19,20 @@ Furthermore, these densities interact in a reciprocal and geometrical manner to 
 
 ∂²φ/∂t² - c²∇²φ + m²φ + gφ³ + ηφ⁵ + αφ(∂φ/∂t)∇φ + δ(∂φ/∂t)²φ + γφ – βcos(ωnt)φ = 8πGkφ²
 
-with applicability to atomic, quantum mechanics, relativity, and cosmological phenomena through a single mathematical framework that is deterministic and computationally verifiable.
+Where the terms represent:
+∂²φ/∂t² - c²∇²φ: These are the standard linear wave terms, describing the propagation of disturbances in the φ field.
++ m²φ: A mass-like term that provides confinement, allowing stable, localized ehokolon (soliton) structures to form.
++ gφ³ + ηφ⁵: These are non-linear self-interaction terms. They are crucial for modeling complex interactions, the stability of ehokolons, and the emergence of forces between them.
+= 8πGkφ²: The emergent gravity term. The energy of the field itself (proportional to kφ²) acts as the source for its own gravitational potential, replacing the spacetime curvature of General Relativity.
+State-Dependent Physics
+
+A core principle of the EFM is that the laws of physics are not universal constants but are (density)state-dependent. The parameters (or "coupling constants") m, g, η, α, δ, γ, β, ωn are not arbitrary but take on specific values depending on the Harmonic Density State (S/T(N1), T/S(N2), S=T(N3) etc..) being simulated. For instance:
+
+The State Parameter (α) tunes the system for different dynamics, such as the large-scale interactions of cosmology versus the relativistic effects of particle physics.
+
+The Harmonic Driving Term (– βcos(ωnt)φ) represents the influence of the universe's underlying quantized frequency (ωn), which changes depending on the density state and drives phenomena at that scale.
+
+This state-dependent framework allows a single, unified equation to describe a vast range of phenomena, from the formation of galaxies (S/T state) to the interactions of fundamental particles (T/S and S=T states).
 
 This repository is a living body of work that uses LLMs and computational tools to attempt at conducting science. 
 
