@@ -20,7 +20,7 @@ Furthermore, these densities interact in a reciprocal and geometrical manner to 
 ∂²φ/∂t² - c²∇²φ + m²φ + gφ³ + ηφ⁵ + αφ(∂φ/∂t)∇φ + δ(∂φ/∂t)²φ + γφ – βcos(ωnt)φ = 8πGkφ²
 
 Where the terms represent:
-∂²φ/∂t² - c²∇²φ: These are the standard linear wave terms, describing the propagation of disturbances in the φ field.
++ ∂²φ/∂t² - c²∇²φ: These are the standard linear wave terms, describing the propagation of disturbances in the φ field.
 + m²φ: A mass-like term that provides confinement, allowing stable, localized ehokolon (soliton) structures to form.
 + gφ³ + ηφ⁵: These are non-linear self-interaction terms. They are crucial for modeling complex interactions, the stability of ehokolons, and the emergence of forces between them.
 = 8πGkφ²: The emergent gravity term. The energy of the field itself (proportional to kφ²) acts as the source for its own gravitational potential, replacing the spacetime curvature of General Relativity.
