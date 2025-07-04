@@ -35,6 +35,14 @@ The Harmonic Driving Term (– βcos(ωnt)φ) represents the influence of the un
 
 This state-dependent framework allows a single, unified equation to describe a vast range of phenomena, from the formation of galaxies (S/T state) to the interactions of fundamental particles (T/S and S=T states).
 
+### Dimensionless Parameters and Physical Scaling
+
+Within the computational framework, all parameters (m, g, η, etc.) are treated as dimensionless quantities. This approach simplifies the governing equation and ensures numerical stability across vast scales. To bridge the gap between these dimensionless simulation results and observable reality, a process of physical scaling is used. 
+
+This is achieved by "anchoring" a key emergent property from the simulation (like the mass of a stable soliton or the wavelength of a large-scale structure) to its corresponding, experimentally measured physical value. This anchoring establishes a set of scaling factors, allowing all dimensionless results to be converted into falsifiable predictions with standard physical units (e.g., meters, kilograms, seconds).
+
+This state-dependent and scalable framework allows a single, unified equation to describe a vast range of phenomena, from the formation of galaxies (S/T state) to the interactions of fundamental particles (T/S and S=T states).
+
 This repository is a living body of work that uses LLMs and computational tools to attempt at conducting science. 
 
 ## Repository Structure
