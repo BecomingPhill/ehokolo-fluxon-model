@@ -11,9 +11,9 @@ A comprehensive research repository for the Eholoko Fluxon Model, a theory of co
 
 ## Overview
 
-The Eholoko (Oshiwambo meaning 'appearance') Fluxon Model (EFM) attempts at a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of scalar motion as proposed by Dewey B. Larson's Recirporcal System Theory. This scalar motion represents excitations of an underlying energy field I have termed the 'Ehokolo Fluxon Field' (phi) which organizes into quantized energy levels or 'densities' which are configuartions of the reciporcity principle x· t= k. These densities interact in a recirpocal and geometrical manner. 
+The Eholoko (Oshiwambo meaning 'appearance') Fluxon Model (EFM) attempts at a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of scalar motion as initially proposed by Dewey B. Larson's Reciprocal System Theory. We further posit that the scalar motions are excitations of an underlying energy field termed the 'Ehokolo Fluxon Field' (phi) which organizes into harmonically quantized energy levels or 'densities' which are configuartions of the reciporcity principle x· t= k. Furthermore, these densities interact in a recirpocal and geometrical manner. 
 
-This field's behaviour can be described by a non linear Klein-Gordon equation that describes quantum mechanics, relativity, and cosmological phenomena through a single mathematical framework that is deterministic and computationally verifiable.
+The field's behaviour can be described by a non linear Klein-Gordon equation with applicability to atomic, quantum mechanics, relativity, and cosmological phenomena through a single mathematical framework that is deterministic and computationally verifiable.
 
 It is a living body of work that uses LLMs and computational tools to attempt at conducting science and recognizes all the issues implied. As such, scrutiny is welcomed. 
 
@@ -69,7 +69,7 @@ Organized chat transcripts from AI research sessions:
 - **Astrophysics**: Black hole dynamics, gravitational waves, stellar evolution
 - **Gravitational Physics**: Emergent gravity, spacetime curvature alternatives
 
-### N2 - Time/Space (Time over Spcae)
+### N2 - Time/Space (Time over Space)
 - **Quantum Mechanics**: Measurement theory, wavefunction evolution
 - **Particle Physics**: Mass generation, force unification, nuclear interactions
 - **Quantum Field Theory**: Ehokolon field dynamics and interactions
