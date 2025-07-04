@@ -25,7 +25,7 @@ Where the terms represent:
 + gφ³ + ηφ⁵: These are non-linear self-interaction terms. They are crucial for modeling complex interactions, the stability of ehokolons, and the emergence of forces between them.
 + = 8πGkφ²: The emergent gravity term. The energy of the field itself (proportional to kφ²) acts as the source for its own gravitational potential, replacing the spacetime curvature of General Relativity.
 
-State-Dependent Physics
+# State-Dependent Physics
 
 A core principle of the EFM is that the laws of physics are not universal constants but are (density)state-dependent. The parameters (or "coupling constants") m, g, η, α, δ, γ, β, ωn are not arbitrary but take on specific values depending on the Harmonic Density State (S/T(N1), T/S(N2), S=T(N3) etc..) being simulated. For instance:
 
