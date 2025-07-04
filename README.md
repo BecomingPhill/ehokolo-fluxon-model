@@ -11,7 +11,7 @@ A comprehensive research repository for the Eholoko Fluxon Model, a theory of co
 
 ## Overview
 
-The Eholoko (Oshiwambo meaning 'appearance') Fluxon Model (EFM) attempts at a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of scalar motion as initially proposed by Dewey B. Larson's Reciprocal System Theory. We further posit that the scalar motions are excitations of an underlying energy field termed the 'Ehokolo Fluxon Field' (phi) which organizes into harmonically quantized energy levels or 'densities' which are configuartions of the reciporcity principle x· t= k. Furthermore, these densities interact in a recirpocal and geometrical manner. 
+The Eholoko (Oshiwambo meaning 'appearance') Fluxon Model (EFM) attempts at a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of scalar motion as initially proposed by Dewey B. Larson's Reciprocal System Theory. We further posit that the scalar motions are excitations of an underlying energy field termed the 'Ehokolo Fluxon Field' (φ phi) which organizes into harmonically quantized energy levels or 'densities' which are configuartions of the reciporcity principle x· t= k. Furthermore, these densities interact in a recirpocal and geometrical manner. 
 
 The field's behaviour can be described by the non-linear Klein-Gordon equation:
 
@@ -19,7 +19,7 @@ The field's behaviour can be described by the non-linear Klein-Gordon equation:
 
 with applicability to atomic, quantum mechanics, relativity, and cosmological phenomena through a single mathematical framework that is deterministic and computationally verifiable.
 
-It is a living body of work that uses LLMs and computational tools to attempt at conducting science and recognizes all the issues implied. As such, scrutiny is welcomed. 
+This repository is a living body of work that uses LLMs and computational tools to attempt at conducting science. 
 
 ## Repository Structure
 
