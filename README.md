@@ -64,7 +64,6 @@ Active research organized by density and specific phenomena. Each research area 
 Organized chat transcripts from AI research sessions:
 - **google-ai-studio/**: Google AI Studio sessions
 - **grok/**: Grok AI sessions
-- **private/**: Private sessions (not included in public repository)
 
 ## Key Known Research Areas
 
