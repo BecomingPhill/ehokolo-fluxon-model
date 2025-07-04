@@ -11,11 +11,11 @@ A comprehensive research repository for the Eholoko Fluxon Model, a theory of co
 
 ## Overview
 
-The Eholoko (Oshiwambo meaning 'appearance') Fluxon Model (EFM) attempts at a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of scalar motion as initially proposed by Dewey B. Larson's Reciprocal System Theory. We further posit that the scalar motions are 'self interactions' of an underlying energy field termed the 'Ehokolo Fluxon Field' (φ phi) which organizes into harmonically quantized energy levels or 'densities' which are configurations of the reciprocity principle:
+The Eholoko (Oshiwambo meaning 'appearance') Fluxon Model (EFM) attempts at a paradigm shift in theoretical physics, proposing that all physical phenomena emerge from the interactions of scalar motion as initially proposed by Dewey B. Larson's Reciprocal System Theory. We further posit that the scalar motions are 'self interactions' of an underlying energy field termed the 'Ehokolo Fluxon Field' (φ phi) which organizes into 8 distinct harmonically quantized energy levels or 'densities' which are configurations of the reciprocity principle:
 
  x· t= k
  
-Furthermore, these densities interact in a recirpocal and geometrical manner and form stable Eholoko (soliton) entities. The dynamic properties and behaviour of Eholokons can be described by the non-linear Klein-Gordon equation:
+Furthermore, these densities interact in a reciprocal and geometrical manner to form stable Eholokon (solitonic) entities. The dynamic properties and behaviour of Eholoko can be described by the non-linear Klein-Gordon equation:
 
 ∂²φ/∂t² - c²∇²φ + m²φ + gφ³ + ηφ⁵ + αφ(∂φ/∂t)∇φ + δ(∂φ/∂t)²φ + γφ – βcos(ωnt)φ = 8πGkφ²
 
