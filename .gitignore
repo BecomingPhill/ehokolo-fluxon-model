@@ -121,4 +121,7 @@ logs/
 *.ps
 
 # Project setup scripts
-setup-github.sh 
+setup-github.sh
+latex_build/
+build_latex_compendium.py
+COMPENDIUM_README.md
