@@ -1,45 +1,26 @@
-# Paper Index
+# EFM Papers Collection
 
-*This page is under development and will be added in a future update.*
+The Eholoko Fluxon Model repository separates foundational theoretical work from active, empirically validated research.
 
-## Overview
+## :material-microscope: [Active Research Papers](research-papers.md)
 
-This section will provide a comprehensive index of all papers in the Ehokolo Fluxon Model repository.
+**Start Here**. This section contains the **validated research** derived from the EFM Simulation Engine. These papers provide first-principles derivations of known phenomena, including:
 
-## Planned Content
+*   **Cosmology**: The Cosmic Echo (CMB), Cosmic Engine (Thermodynamics).
+*   **Particle Physics**: Neutron Skin, Covalent Bond, Nature of Light.
+*   **Forces**: Unification of Gravity, EM, and Strong Force.
+*   **Ontology**: The Eholoko Simulation Engine architecture.
 
-### Paper Organization
-- **By Density State**: Papers organized by N1-N8 density states
-- **By Research Area**: Papers organized by scientific discipline
-- **By Type**: Hypothesis papers vs. research papers
-- **By Status**: Published, in review, in progress
-
-### Search and Filter
-- **Keyword search**: Find papers by keywords
-- **Author search**: Find papers by author
-- **Date range**: Find papers by publication date
-- **Topic filter**: Filter by research topic
-
-### Paper Details
-- **Abstracts**: Complete paper abstracts
-- **Keywords**: Research keywords and tags
-- **Citations**: Citation information and formats
-- **Downloads**: Links to PDF and source files
-
-## Current Status
-
-The paper index is being compiled from the existing repository structure. This page will include:
-- Complete listing of all papers
-- Searchable interface
-- Filtering options
-- Download links
-
-## Related Sections
-
-- [Hypothesis Papers](hypothesis-papers.md): Foundational theoretical papers
-- [Research Papers](research-papers.md): Active research papers
-- [Research Areas](../research/density-science.md): Research area descriptions
+[:octicons-arrow-right-24: View Active Research Papers](research-papers.md){ .md-button .md-button--primary }
 
 ---
 
-*Last updated: October 2025*
+## :material-file-document-outline: [Hypothesis Papers](hypothesis-papers.md)
+
+This section contains the original theoretical proposals and foundational hypothesis papers. While critical for understanding the model's history, they represent the theoretical groundwork rather than the current computational validations.
+
+[:octicons-arrow-right-24: View Hypothesis Papers](hypothesis-papers.md){ .md-button }
+
+## How to Cite
+
+When citing EFM research, please refer to the specific paper in the [Active Research](research-papers.md) section. All papers are available as PDF downloads directly from this repository.
