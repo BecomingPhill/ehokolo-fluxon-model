@@ -97,7 +97,7 @@ Thumbs.db
 llm-sessions/private/
 
 # Tools folder
-/tools/
+tools/
 
 # Temporary files
 temp/

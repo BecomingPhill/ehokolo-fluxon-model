@@ -159,8 +159,7 @@ nav:
     - Paper Index: papers/index.md
   - Tools:
     - Computational Tools: tools/computational.md
-    - Research Organization: tools/research-organization.md
-    - Utilities: tools/utilities.md
+
   - Collaboration:
     - Contributing: collaboration/contributing.md
     - Research Workflow: collaboration/workflow.md
