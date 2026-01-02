@@ -17,7 +17,7 @@ The Eholoko Fluxon Model repository separates foundational theoretical work from
 
 ## :material-file-document-outline: [Hypothesis Papers](hypothesis-papers.md)
 
-This section contains the original theoretical proposals and foundational hypothesis papers. While critical for understanding the model's history, they represent the theoretical groundwork rather than the current computational validations.
+This section contains the original theoretical proposals and foundational hypothesis papers. **These papers set the foundation for the real research done.** While some used computational validations, for the most part they were **approximations** that paved the way for the rigorous, high-resolution derivations found in the [Active Research](research-papers.md) section.
 
 [:octicons-arrow-right-24: View Hypothesis Papers](hypothesis-papers.md){ .md-button }
 

@@ -1,24 +1,20 @@
-# Papers
+# Hypothesis Papers Archive
 
-This section provides comprehensive access to all papers in the Ehokolo Fluxon Model repository, organized by type and research area.
+This section catalogs the **foundational hypothesis papers** of the Eholoko Fluxon Model.
+
+!!! warning "Historical Context"
+    These papers represent the developing implementation of the EFM. While they set the critical theoretical foundation for the project, the computational validations presented within them were largely **approximations** or low-resolution proofs-of-concept. For the definitive, high-resolution derivations, please consult the [Active Research Papers](research-papers.md).
 
 ## Paper Categories
 
-### Hypothesis Papers
-Original theoretical work that forms the foundation of the EFM:
+### Theoretical Foundations
+Original work establishing the core principles:
 
-- **Mathematical frameworks**: Core theoretical derivations
-- **Density state descriptions**: Detailed exploration of N1-N8 states
-- **Computational approaches**: Numerical methods and validation
-- **Theoretical predictions**: Testable predictions and implications
+- **Mathematical frameworks**: Core theoretical derivations (e.g., *The Ehokolo Fluxon Model v3*)
+- **Density state descriptions**: Initial exploration of N1-N8 states
+- **Theoretical predictions**: Testable predictions that led to current research
 
-### Research Papers
-Active research based on hypothesis papers:
 
-- **Computational studies**: Numerical simulations and analysis
-- **Empirical validation**: Comparison with observational data
-- **Method development**: New computational and analytical methods
-- **Application studies**: Specific applications to physical phenomena
 
 ## Paper Organization
 
@@ -78,19 +74,7 @@ Active research based on hypothesis papers:
 - **Content**: From fundamental dynamics to emergent solitons
 - **Status**: Core mathematical reference
 
-### Research Papers
 
-#### "Numerical Simulation and Experimental Testing of Solitons in the Fluxonic Klein-Gordon System"
-- **Version**: v1.1
-- **Type**: Computational study
-- **Content**: Soliton dynamics and validation
-- **Status**: Active research
-
-#### "Scaling Analysis of Soliton Behavior in the Fluxonic Klein-Gordon System"
-- **Version**: v1.1
-- **Type**: Scaling methodology
-- **Content**: Dimensionless to physical unit conversion
-- **Status**: Methodology paper
 
 ## Paper Access
 
