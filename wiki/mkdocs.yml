@@ -154,9 +154,8 @@ nav:
       - Chemistry: research/n3-st/chemistry.md
       - Biology: research/n3-st/biology.md
   - Papers:
-    - Hypothesis Papers: papers/hypothesis-papers.md
-    - Research Papers: papers/research-papers.md
-    - Paper Index: papers/index.md
+    - Active Research: papers/index.md
+    - Hypothesis Archive: papers/hypothesis-papers.md
   - Tools:
     - Computational Tools: tools/computational.md
 
