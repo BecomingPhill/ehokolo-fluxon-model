@@ -186,9 +186,8 @@ The ratio of independently derived factors must equal fundamental constants:
 - [Mathematical Framework](mathematical-framework.md): Core equations and derivations
 - [Density States](density-states.md): Detailed exploration of N1-N8 states
 - [Scaling Analysis](../research/density-science.md): Computational validation methods
-- [Research Papers](../papers/research-papers.md): Detailed validation studies
+- [Active Research Papers](../papers/index.md): See the physics of mind validation studies
 
 ---
 
 *This theory of mind provides the essential framework for understanding and validating the Eholoko Fluxon Model. Mastery of these concepts is crucial for anyone working with the EFM.*
-

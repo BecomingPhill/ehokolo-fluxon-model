@@ -188,11 +188,10 @@ Compare predictions with observational data and experimental results.
 1. Begin with [Theory Overview](../theory/overview.md) for foundational concepts
 2. Study [Mathematical Framework](../theory/mathematical-framework.md) for technical details
 3. Explore specific [Density States](../densities/n1-st.md) relevant to your interests
-4. Review [Research Papers](../papers/research-papers.md) for current findings
+4. Review [Active Research Papers](../papers/index.md) for current findings
 
 ## Related Sections
 
 - [Theory](../theory/overview.md): Foundational theoretical framework
 - [Densities](../densities/n1-st.md): Detailed density state descriptions
-- [Papers](../papers/hypothesis-papers.md): Comprehensive paper collection
 - [Tools](../tools/computational.md): Computational tools and utilities

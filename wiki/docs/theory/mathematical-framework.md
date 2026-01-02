@@ -173,5 +173,5 @@ Where $V(\phi)$ is the potential energy density.
 ## References
 
 - [Density States](density-states.md): Parameter values for each density
-- [Research Papers](../papers/research-papers.md): Detailed computational studies
+- [Active Research Papers](../papers/index.md): Validation of the frameworknal studies
 - [Computational Tools](../tools/computational.md): Implementation examples

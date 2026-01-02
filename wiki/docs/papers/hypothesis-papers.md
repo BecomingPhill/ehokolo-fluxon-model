@@ -3,7 +3,7 @@
 This section catalogs the **foundational hypothesis papers** of the Eholoko Fluxon Model.
 
 !!! warning "Historical Context"
-    These papers represent the developing implementation of the EFM. While they set the critical theoretical foundation for the project, the computational validations presented within them were largely **approximations** or low-resolution proofs-of-concept. For the definitive, high-resolution derivations, please consult the [Active Research Papers](research-papers.md).
+    These papers represent the developing implementation of the EFM. While they set the critical theoretical foundation for the project, the computational validations presented within them were largely **approximations** or low-resolution proofs-of-concept. For the definitive, high-resolution derivations, please consult the [Active Research Papers](index.md).
 
 ## Paper Categories
 
