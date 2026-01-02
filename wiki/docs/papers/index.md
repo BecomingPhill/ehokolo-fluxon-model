@@ -1,6 +1,6 @@
 # Active Research Papers
 
-This section lists the definitive, empirically validated research of the **Eholoko Fluxon Model (EFM)**. These papers represent the "proof of work" of the model, deriving known physical phenomena from first principles using the EFM Simulation Engine.
+This section lists the definitive, empirically validated research of the **Eholoko Fluxon Model (EFM)**. These papers represent some of the "proof of work" of the model, deriving known physical phenomena from first principles using the EFM Simulation Engine.
 
 ## N1 (S/T) - Cosmology & Astrophysics
 *Papers validating the EFM against large-scale structure and cosmic observational data.*
