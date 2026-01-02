@@ -126,6 +126,6 @@ Repository. https://github.com/BecomingPhill/eholoko-fluxon-model
 ## Related Sections
 
 - [Hypothesis Papers](hypothesis-papers.md): Detailed hypothesis paper index
-- [Research Papers](research-papers.md): Active research paper collection
+- [Active Research Papers](index.md): Active research paper collection
 - [Paper Index](index.md): Comprehensive paper listing
 - [Research Areas](../research/density-science.md): Research area descriptions
