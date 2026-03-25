@@ -127,6 +127,17 @@ The wiki provides detailed documentation including:
 - Computational tools and utilities
 - Contributing guidelines and licensing information
 
+## The Compendium
+
+We have compiled the latest, computationally validated research into a single, comprehensive document: **[Eholoko_Fluxon_Model_Compendium_2026-03-24.pdf](Eholoko_Fluxon_Model_Compendium_2026-03-24.pdf)**.
+
+This compendium is generated automatically from the underlying LaTeX source files across the `research/` directory. It curates exactly 50 core papers out of the broader tracking space. The specific paper selection criteria strictly prioritize:
+1. Only the most up-to-date iterations (omitting early drafts and superseded `v1`s).
+2. The rigorous subset of research that has been concretely, computationally validated.
+3. Papers that collectively construct the contiguous theoretical hierarchy of the EFM across its density states (Ontology, N1, N2, and N3).
+
+**Note on Ongoing Work:** Generating this unified compendium is an active and iterative process. While the core physics and mathematical proofs are strictly intact, cleaning up the combined document structure, unifying cross-references between originally independent papers, and properly formatting the integrated bibliography is an ongoing effort.
+
 ## Getting Started
 
 1. **For Researchers**: Browse hypothesis papers by density in `/hypothesis-papers/`
