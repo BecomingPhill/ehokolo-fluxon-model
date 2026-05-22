@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flux Chem Studio - EFM Molecular Design</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 3Dmol.js for molecular visualization -->
+    <script src="3Dmol-min.js"></script>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-logo">
+                <span class="gradient-text">Flux Chem Studio</span>
+                <span class="version-badge">EFM v1.3</span>
+            </div>
+            <div class="header-controls">
+                <button id="toggle-guide-btn" class="secondary-btn" style="margin-right: 10px;">Science Guide</button>
+                <a href="/docs.html" target="_blank" class="secondary-btn" id="nav-docs-link" style="margin-right: 15px;">Documentation</a>
+                <div class="header-status">
+                    <span class="status-indicator online"></span>
+                    <span class="status-text">Local EFM Solver Engine Active</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="workspace-grid">
+            <!-- Left Panel: Controls and Loading -->
+            <section class="control-panel glass-card">
+                <h2>1. Structure Setup</h2>
+                
+                <!-- Target Loading -->
+                <div class="control-group">
+                    <label class="group-title">
+                        Target Protein (PDB)
+                        <span class="info-icon" data-tooltip="Enter the 4-character RCSB PDB code (e.g., 1HSG). The solver isolates pocket residues and centers the simulation box on the active site.">i</span>
+                    </label>
+                    <div class="input-row">
+                        <input type="text" id="pdb-id-input" placeholder="e.g. 1HSG" value="1HSG">
+                        <button id="fetch-target-btn" class="primary-btn">Fetch PDB</button>
+                    </div>
+                    <div class="search-helper">
+                        <input type="text" id="search-query" placeholder="Search targets (e.g. protease)">
+                        <button id="search-target-btn" class="secondary-btn">Search</button>
+                    </div>
+                    <div id="search-results-list" class="search-results-list hidden"></div>
+                    <div class="loaded-info" id="target-info">No target loaded.</div>
+                </div>
+
+                <!-- Ligand / Plant Extract Loading -->
+                <div class="control-group">
+                    <label class="group-title">
+                        Ligand / Phytocompound
+                        <span class="info-icon" data-tooltip="Fetch a ligand structure SDF file from PubChem (e.g. Artemisinin). The solver will test its wave compatibility with the target pocket.">i</span>
+                    </label>
+                    <div class="input-row">
+                        <input type="text" id="compound-name-input" placeholder="e.g. Artemisinin, Quinine">
+                        <button id="fetch-ligand-btn" class="primary-btn">Fetch PubChem</button>
+                    </div>
+                    <div class="loaded-info" id="ligand-info">No ligand loaded.</div>
+                </div>
+
+                <h2>2. EFM Biophysics Parameters</h2>
+                <div class="params-grid">
+                    <div class="param-slider">
+                        <div class="slider-label">
+                            <span>
+                                Grid Resolution (N³)
+                                <span class="info-icon" data-tooltip="Determines simulation detail. Higher resolutions capture finer electronic wave details but increase computational runtime.">i</span>
+                            </span>
+                            <span id="grid-val">32</span>
+                        </div>
+                        <input type="range" id="grid-size" min="16" max="64" step="8" value="32">
+                    </div>
+                    
+                    <div class="param-slider">
+                        <div class="slider-label">
+                            <span>
+                                Box Size (L, Å)
+                                <span class="info-icon" data-tooltip="The physical dimension of the 3D simulation box in Angstroms centered on the binding pocket.">i</span>
+                            </span>
+                            <span id="box-val">16.0</span>
+                        </div>
+                        <input type="range" id="box-size" min="8" max="32" step="2" value="16">
+                    </div>
+
+                    <div class="param-slider">
+                        <div class="slider-label">
+                            <span>
+                                Simulation Steps
+                                <span class="info-icon" data-tooltip="Iterative Verlet steps allowed for the scalar wave field to relax into its lowest energy ground state.">i</span>
+                            </span>
+                            <span id="steps-val">500</span>
+                        </div>
+                        <input type="range" id="sim-steps" min="100" max="1500" step="100" value="500">
+                    </div>
+
+                    <div class="param-slider">
+                        <div class="slider-label">
+                            <span>
+                                Damping (delta)
+                                <span class="info-icon" data-tooltip="Damping coefficient that dissipates kinetic wave energy, helping the simulation converge to a stable, static state.">i</span>
+                            </span>
+                            <span id="damping-val">0.2</span>
+                        </div>
+                        <input type="range" id="damping" min="0.05" max="0.5" step="0.05" value="0.2">
+                    </div>
+
+                    <div class="param-slider">
+                        <div class="slider-label">
+                            <span>
+                                Target Class Calibration
+                                <span class="info-icon" data-tooltip="Selected target family to apply calibrated linear regression parameters for predicting experimental pKi.">i</span>
+                            </span>
+                        </div>
+                        <select id="target-class-select" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-top: 6px; font-family: inherit; font-size: 13px; outline: none; border-color: rgba(255, 255, 255, 0.15);">
+                            <option value="General">General / Global Calibration</option>
+                            <option value="DHFR">Dihydrofolate Reductase (DHFR)</option>
+                            <option value="Carbonic Anhydrase">Carbonic Anhydrase</option>
+                            <option value="Viral Protease">Viral Protease</option>
+                            <option value="Thrombin">Thrombin</option>
+                            <option value="Trypsin">Trypsin</option>
+                            <option value="Kinase">Kinase</option>
+                            <option value="GPCR">GPCR</option>
+                            <option value="Nuclear Receptor">Nuclear Receptor</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="actions-row">
+                    <button id="run-docking-btn" class="action-btn success-btn">Run EFM Docking</button>
+                    <button id="run-evolution-btn" class="action-btn warning-btn">De Novo Evolution</button>
+                </div>
+                <div class="actions-row">
+                    <button id="clear-all-btn" class="action-btn secondary-btn" style="padding: 10px;">Clear All</button>
+                    <button id="export-results-btn" class="action-btn info-btn" style="padding: 10px;" disabled>Export Results</button>
+                </div>
+            </section>
+
+            <!-- Right Panel: Visualization and Results -->
+            <section class="viewer-panel">
+                <!-- 3D Molecular View -->
+                <div class="viewer-container glass-card">
+                    <div id="viewport-3d" class="viewport-3d"></div>
+                    <div class="viewer-overlay">
+                        <div class="control-badge">3D Active Site Centered</div>
+                        <div class="viewer-controls">
+                            <button id="style-cartoon" class="viewer-btn active">Cartoon</button>
+                            <button id="style-sphere" class="viewer-btn">Spacefill</button>
+                            <button id="style-stick" class="viewer-btn">Sticks</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EFM Specific Phase Friction Output -->
+                <div class="results-container">
+                    <div class="results-card glass-card">
+                        <h3>Biophysical Scores</h3>
+                        <div class="score-display">
+                            <div class="score-item">
+                                <span class="score-label">
+                                    Target Phase Energy (E<sub>A</sub>)
+                                    <span class="info-icon" data-tooltip="The baseline specific phase friction of the target protein alone. Measures the wave gradient energy of the empty pocket.">i</span>
+                                </span>
+                                <span class="score-value" id="score-ea">-</span>
+                            </div>
+                            <div class="score-item">
+                                <span class="score-label">
+                                    Complex Phase Energy (E<sub>AB</sub>)
+                                    <span class="info-icon" data-tooltip="The phase friction of the combined target-ligand complex. A smooth overlap reduces this score.">i</span>
+                                </span>
+                                <span class="score-value" id="score-eab">-</span>
+                            </div>
+                            <div class="score-item highlight">
+                                <span class="score-label">
+                                    Relative Binding Score (&Delta;E)
+                                    <span class="info-icon" data-tooltip="Relative Binding Score (Friction Shift). A negative shift (ΔE < 0) indicates stable wave overlap (favorable binding). A positive shift indicates a steric clash.">i</span>
+                                </span>
+                                <span class="score-value" id="score-delta">-</span>
+                            </div>
+                            <div class="score-item highlight-alt" style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 10px; margin-top: 10px;">
+                                <span class="score-label">
+                                    Calibrated Affinity (Est. pK<sub>i</sub>)
+                                    <span class="info-icon" data-tooltip="Estimated experimental binding affinity (log units) calculated using target-class linear calibration from the 100-target validation library.">i</span>
+                                </span>
+                                <span class="score-value" id="score-pki" style="color: var(--accent-teal);">-</span>
+                            </div>
+                        </div>
+                        <div class="binding-status" id="binding-status">
+                            Initialize docking or de novo growth to measure phase friction changes.
+                        </div>
+                    </div>
+
+                    <!-- De Novo Mutation Logs -->
+                    <div class="evolution-card glass-card">
+                        <h3>
+                            De Novo Evolution Log (Shz-1 Pipeline)
+                            <span class="info-icon" data-tooltip="Runs a fragment growth simulation, extending a seed molecule (Oxygen) with Carbon side chains. Favorable extensions represent potential drug leads.">i</span>
+                        </h3>
+                        <div class="evolution-log" id="evolution-log">
+                            <div class="log-placeholder">Launch De Novo Evolution to grow Carbon backbone mutations and identify steric clashes.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Bottom: EFM Theory Explainer -->
+        <footer class="explainer-section glass-card">
+            <h3>Understanding EFM Covalent Spacing & Specific Phase Friction</h3>
+            <p>
+                Unlike standard quantum chemical software that models electron shielding and Pauli exclusion via computationally heavy Slater determinants (<span class="math-expr"><var>O</var>(<var>N</var>!)</span>), the **Eholoko Fluxon Model (EFM)** represents chemistry as continuous scalar field thermodynamics. Covalent bonds form as stable, harmonic resonances of overlapping waves. 
+            </p>
+            <p>
+                When a ligand fits correctly in the target active site, the total field gradient flattens out, minimizing the <strong>Specific Phase Friction (E<sub>spec</sub>)</strong>: <span class="math-expr"><var>E</var><sub>spec</sub> = <span class="fraction"><span class="numerator">&sum; |&nabla;<var>&psi;</var>|<sup>2</sup></span><span class="denominator">&sum; <var>&rho;</var></span></span></span>. If a mutation clashes sterically with the pocket wall (Mutation B), the phase windings compound, creating a sharp spike in local gradient energy (Pauli phase repulsion) resulting in a positive binding affinity (<span class="math-expr">&Delta;<var>E</var> &gt; 0</span>).
+            </p>
+        </footer>
+    </div>
+
+    <!-- Science Guide Modal Overlay -->
+    <div id="science-guide-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-card">
+            <header class="modal-header">
+                <h2>EFM & Biochemistry Integration Guide</h2>
+                <button id="close-guide-btn" class="close-btn">&times;</button>
+            </header>
+            <div class="modal-body">
+                <h3>Translation Bridge</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">
+                    This bridge translates the physics of the Eholoko Fluxon Model into terms commonly used in traditional molecular docking and biophysics:
+                </p>
+                <table class="translation-table">
+                    <thead>
+                        <tr>
+                            <th>EFM Physics Term</th>
+                            <th>Biochemical Equivalent</th>
+                            <th>Simulation Role</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Harmonic Density State (HDS)</strong></td>
+                            <td>Atomic Shell Density Zones</td>
+                            <td>Discrete wave densities governing electron/nuclear shells.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HDS 1 (Core)</strong></td>
+                            <td>Atomic Nucleus & Inner Shells</td>
+                            <td>High-density zone, highly repulsive (Pauli repulsion).</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HDS 2 (Mantle)</strong></td>
+                            <td>Valence Shell / Covalent Bond</td>
+                            <td>Shared orbital resonance creating stable bonds.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HDS 3 (Binding)</strong></td>
+                            <td>Electrostatic / Hydrogen Bonds</td>
+                            <td>Low-density tails governing hydrogen & weak interactions.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Specific Phase Friction (E<sub>spec</sub>)</strong></td>
+                            <td>Wave Phase Gradient Energy</td>
+                            <td>Measures how smoothly ligand & pocket waves overlap.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Friction Shift (&Delta;E)</strong></td>
+                            <td>Relative Binding Energy / Score</td>
+                            <td>&Delta;E &lt; 0 indicates stable binding; &Delta;E &gt; 0 indicates steric clash.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Verlet Wave Relaxation</strong></td>
+                            <td>Geometry Optimization</td>
+                            <td>Iterative energy minimization to settle wave fields.</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <h3 style="margin-top: 25px;">Understanding Parameters</h3>
+                <ul style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; padding-left: 20px;">
+                    <li><strong>Grid Resolution:</strong> Higher value = higher detail for small molecules. Lower value = faster runtimes.</li>
+                    <li><strong>Box Size:</strong> The simulated volume (in Angstroms) centered on the active site pocket.</li>
+                    <li><strong>Simulation Steps:</strong> How long the wave fields are allowed to relax. Increase if metrics fluctuate.</li>
+                    <li><strong>Damping (delta):</strong> Controls kinetic energy dissipation to settle waves into a ground state.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Target Search Results Modal Overlay -->
+    <div id="search-results-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-card" style="max-width: 900px; width: 95%;">
+            <header class="modal-header">
+                <h2>Target Protein Search Results</h2>
+                <button id="close-search-modal-btn" class="close-btn">&times;</button>
+            </header>
+            <div class="modal-body" style="max-height: 70vh;">
+                <div class="table-container" style="overflow-x: auto; width: 100%;">
+                    <table class="translation-table" style="font-size: 13px; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="width: 12%;">PDB ID</th>
+                                <th style="width: 25%;">Classification</th>
+                                <th style="width: 38%;">Structure Title</th>
+                                <th style="width: 15%;">Organism</th>
+                                <th style="width: 10%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="search-modal-results-body">
+                            <!-- Dynamic rows loaded via app.js -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

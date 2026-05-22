@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flux-chem-studio"
+dynamic = ["version"]
+description = "Flux Chem Studio - EFM Biophysical Molecular Docking and De Novo Evolution"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "torch",
+    "pywebview",
+    "fastapi",
+    "uvicorn",
+    "numpy",
+    "requests",
+]
+
+[project.scripts]
+flux-chem-studio = "main:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "engine.__version__"}
+
+[tool.setuptools]
+packages = ["engine"]
+py-modules = ["main"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = [
+    "frontend/*",
+    "frontend/3Dmol-min.js",
+    "data/*",
+]

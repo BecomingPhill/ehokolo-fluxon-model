@@ -1,0 +1,6 @@
+torch
+pywebview
+fastapi
+uvicorn
+numpy
+requests
