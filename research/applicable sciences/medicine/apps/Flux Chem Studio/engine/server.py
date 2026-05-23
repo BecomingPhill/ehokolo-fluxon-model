@@ -7,6 +7,7 @@ import os
 import json
 import numpy as np
 import torch
+import sqlite3
 
 from engine import __version__
 from engine.solver import EFMSolver
@@ -55,6 +56,9 @@ class ScreeningRequest(BaseModel):
     pocket_center: Optional[List[float]] = None
     simulation_steps: Optional[int] = 500
     target_class: Optional[str] = "General"
+    grid_size: Optional[int] = 32
+    box_size: Optional[float] = 16.0
+    low_spec_mode: Optional[bool] = False
 
 class MutationData(BaseModel):
     name: str
@@ -67,6 +71,31 @@ class EvolutionRequest(BaseModel):
     pocket_center: Optional[List[float]] = None
     simulation_steps: Optional[int] = 500
     target_class: Optional[str] = "General"
+    grid_size: Optional[int] = 32
+    box_size: Optional[float] = 16.0
+    low_spec_mode: Optional[bool] = False
+
+class NaturalProductResponse(BaseModel):
+    id: int
+    name: str
+    source_organism: str
+    therapeutic_area: str
+
+class NTDTemplateResponse(BaseModel):
+    name: str
+    pdb_id: str
+    center: List[float]
+    target_class: str
+
+class SynergyScreeningRequest(BaseModel):
+    target_atoms: List[AtomData]
+    ligands: List[List[AtomData]]
+    pocket_center: Optional[List[float]] = None
+    simulation_steps: Optional[int] = 500
+    target_class: Optional[str] = "General"
+    grid_size: Optional[int] = 32
+    box_size: Optional[float] = 16.0
+    low_spec_mode: Optional[bool] = False
 
 def detect_target_class(pdb_content: str):
     header_classification = ""
@@ -291,11 +320,164 @@ def find_smart_pocket_center(target_atoms: List[AtomData], ligand_atoms: Optiona
         
     return [0.0, 0.0, 0.0]
 
+@app.get("/natural_products", response_model=List[NaturalProductResponse])
+async def get_natural_products():
+    db_path = os.path.join(DATA_DIR, "african_natural_products.db")
+    if not os.path.exists(db_path):
+        return []
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, source_organism, therapeutic_area FROM natural_products ORDER BY name")
+        rows = cursor.fetchall()
+        conn.close()
+        return [
+            {
+                "id": r[0],
+                "name": r[1],
+                "source_organism": r[2],
+                "therapeutic_area": r[3]
+            } for r in rows
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.get("/fetch_natural_product/{np_id}")
+async def fetch_natural_product(np_id: int):
+    db_path = os.path.join(DATA_DIR, "african_natural_products.db")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="Natural products database not found.")
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, source_organism, therapeutic_area, sdf_content FROM natural_products WHERE id = ?", (np_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            raise HTTPException(status_code=404, detail="Natural product not found.")
+            
+        name, source, area, sdf_content = row
+        atoms = client.parse_sdf_coords(sdf_content)
+        return {
+            "name": name,
+            "source_organism": source,
+            "therapeutic_area": area,
+            "raw_sdf": sdf_content,
+            "atoms": atoms
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/ntd_templates", response_model=List[NTDTemplateResponse])
+async def get_ntd_templates():
+    return [
+        {"name": "Malaria DHFR (P. falciparum)", "pdb_id": "1J3J", "center": [33.7851, 4.0194, 68.6664], "target_class": "DHFR"},
+        {"name": "Tuberculosis InhA (M. tuberculosis)", "pdb_id": "1ZID", "center": [-4.3466, 34.6694, 13.4338], "target_class": "General"},
+        {"name": "Malaria Kelch13 Propeller (P. falciparum)", "pdb_id": "4XT7", "center": [14.4962, 46.3002, 19.5437], "target_class": "General"},
+        {"name": "Sleeping Sickness Trypanothione Reductase (T. brucei)", "pdb_id": "2W0C", "center": [358.8464, -163.1327, 84.4408], "target_class": "General"},
+        {"name": "Leishmaniasis DHFR-TS (L. major)", "pdb_id": "1D7A", "center": [24.0199, 24.3700, 36.9277], "target_class": "DHFR"},
+        {"name": "Schistosomiasis TGR (S. mansoni)", "pdb_id": "2V6O", "center": [20.0194, 4.8272, 15.5992], "target_class": "General"}
+    ]
+
+@app.post("/run_synergy_screening")
+async def run_synergy_screening(req: SynergyScreeningRequest):
+    if not req.ligands or len(req.ligands) == 0:
+        raise HTTPException(status_code=400, detail="No ligands provided for synergy screening.")
+    try:
+        if req.low_spec_mode:
+            import os
+            cores = os.cpu_count() or 4
+            torch.set_num_threads(max(1, cores - 1))
+
+        # Filter target hydrogens
+        target_atoms_no_h = [a for a in req.target_atoms if a.element.upper() != "H"]
+        
+        # Center pocket
+        if req.pocket_center is not None:
+            center = req.pocket_center
+        else:
+            # Pick first ligand as reference for centering
+            first_ligand_no_h = [a for a in req.ligands[0] if a.element.upper() != "H"]
+            center = find_smart_pocket_center(target_atoms_no_h, first_ligand_no_h)
+
+        # Filter target pocket
+        target_filtered = filter_and_center_atoms(target_atoms_no_h, center, cutoff=15.0)
+        
+        # Instantiate solver
+        solver = EFMSolver(grid_size=req.grid_size or 32, box_size=req.box_size or 16.0)
+        
+        target_coords = [[a["x"], a["y"], a["z"]] for a in target_filtered]
+        target_charges = [client.get_atomic_number(a["element"]) for a in target_filtered]
+        
+        # Run target alone wave relaxation
+        V_target = solver.build_nuclear_potential(target_coords, target_charges)
+        psi_target_r, psi_target_i = solver.run_simulation(V_target, atom_coords=target_coords, steps=req.simulation_steps)
+        E_target = solver.calculate_specific_phase_friction(psi_target_r, psi_target_i)
+        
+        # Combine target and ALL ligands into complex potential
+        complex_coords = list(target_coords)
+        complex_charges = list(target_charges)
+        
+        total_z_lig = 0
+        total_n_lig = 0
+        
+        # Process each ligand
+        for lig_idx, ligand in enumerate(req.ligands):
+            ligand_no_h = [a for a in ligand if a.element.upper() != "H"]
+            for atom in ligand_no_h:
+                complex_coords.append([atom.x - center[0], atom.y - center[1], atom.z - center[2]])
+                z_val = client.get_atomic_number(atom.element)
+                complex_charges.append(z_val)
+                total_z_lig += z_val
+                total_n_lig += 1
+                
+        V_complex = solver.build_nuclear_potential(complex_coords, complex_charges)
+        psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, atom_coords=complex_coords, steps=req.simulation_steps)
+        E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
+        
+        # Calculate lability index and tag
+        lability_idx = solver.calculate_lability_index(V_complex, psi_complex_r, psi_complex_i, steps=100)
+        if lability_idx < 0.05:
+            lability_tag = "Blocker / Antagonist"
+        elif lability_idx <= 0.15:
+            lability_tag = "Activator / Agonist"
+        else:
+            lability_tag = "Unstable / Steric Clash"
+            
+        delta_E = E_complex - E_target
+        
+        # Size-corrected EFM score
+        efm_score = calculate_efm_score(E_target, E_complex, delta_E, total_z_lig, total_n_lig, req.target_class or "General")
+        
+        # Calibrated pKi
+        slope, intercept, calib_name = compute_calibration_for_class(req.target_class or "General")
+        pred_pki = slope * efm_score + intercept
+        
+        return {
+            "E_target": E_target,
+            "E_complex": E_complex,
+            "delta_E": delta_E,
+            "efm_score": efm_score,
+            "is_favorable": bool((delta_E < 0) or (pred_pki > 5.0)),
+            "center": center,
+            "predicted_pki": pred_pki,
+            "calibration_used": calib_name,
+            "lability_index": float(lability_idx),
+            "lability_tag": lability_tag
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.post("/run_screening")
 async def run_screening(req: ScreeningRequest):
     if not req.ligand_atoms:
         raise HTTPException(status_code=400, detail="No ligand atoms provided for docking.")
     try:
+        if req.low_spec_mode:
+            import os
+            cores = os.cpu_count() or 4
+            torch.set_num_threads(max(1, cores - 1))
+
         # Filter out hydrogen atoms from target and ligand for descriptor alignment
         target_atoms_no_h = [a for a in req.target_atoms if a.element.upper() != "H"]
         ligand_atoms_no_h = [a for a in req.ligand_atoms if a.element.upper() != "H"]
@@ -320,7 +502,7 @@ async def run_screening(req: ScreeningRequest):
             })
 
         # 3. Instantiate solver
-        solver = EFMSolver(grid_size=32, box_size=16.0)
+        solver = EFMSolver(grid_size=req.grid_size or 32, box_size=req.box_size or 16.0)
         
         # Target alone potential
         target_coords = [[a["x"], a["y"], a["z"]] for a in target_filtered]
@@ -378,6 +560,11 @@ async def run_screening(req: ScreeningRequest):
 @app.post("/run_evolution")
 async def run_evolution(req: EvolutionRequest):
     try:
+        if req.low_spec_mode:
+            import os
+            cores = os.cpu_count() or 4
+            torch.set_num_threads(max(1, cores - 1))
+
         # Filter out hydrogen atoms from target for descriptor alignment
         target_atoms_no_h = [a for a in req.target_atoms if a.element.upper() != "H"]
 
@@ -389,7 +576,7 @@ async def run_evolution(req: EvolutionRequest):
             
         target_filtered = filter_and_center_atoms(target_atoms_no_h, center, cutoff=15.0)
         
-        solver = EFMSolver(grid_size=32, box_size=16.0)
+        solver = EFMSolver(grid_size=req.grid_size or 32, box_size=req.box_size or 16.0)
         target_coords = [[a["x"], a["y"], a["z"]] for a in target_filtered]
         target_charges = [client.get_atomic_number(a["element"]) for a in target_filtered]
         V_target = solver.build_nuclear_potential(target_coords, target_charges)

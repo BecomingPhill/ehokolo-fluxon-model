@@ -5,7 +5,16 @@ All notable changes to **Flux Chem Studio** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-05-23
+
+### Added
+- **Offline African Natural Product Database**: Embedded a local SQLite database (`data/african_natural_products.db`) containing structural, chemical, and EFM descriptors for 15 key African phytocompounds (e.g., Artemisinin, Quinine, Nimbolide). Provided new backend endpoints and frontend library selector to allow offline screening of indigenous natural compounds.
+- **Neglected Tropical Disease (NTD) Target Templates**: Added an offline selector with quick-load configurations for key NTD proteins: Malaria DHFR (1LDG), Tuberculosis InhA (2AQ8), Schistosomiasis HDAC8 (4B8A), and Leishmaniasis PTR1 (3O9G).
+- **Low-Spec CPU Optimization Mode**: Integrated PyTorch thread limiting (`torch.set_num_threads(2)`) and grid resolution downscaling (to $32 \times 32 \times 32$) to ensure stable, crash-free execution on resource-constrained laboratory computers.
+- **Phytochemical Synergy (Multi-Ligand) Screening**: Developed a multi-ligand solver that combines matter wave core potentials $V_{\text{nuc}}$ of multiple scaffolds (e.g., Artemisinin + Quinine) into a unified complex potential $V_{\text{complex}}$, enabling biophysical simulation of cooperative binding. Added a UI synergy pool for selecting and docking compound mixtures.
+
 ## [1.2.2] - 2026-05-23
+
 
 ### Fixed
 - **Native Save Panel Extension Enforcement**: Enforced file extension validation inside `main.py`'s `save_file` method. If the user or macOS dialog outputs a filename path without the appropriate extension (e.g., saving `flux_chem_results_1HSG` without `.json` or `ligand_1HSG` without `.sdf`), the backend automatically appends the expected file extension. This guarantees exported files are immediately readable in downstream molecular visualization and drug design workflows.

@@ -20,6 +20,7 @@ Here is how EFM concepts map directly to the biochemical concepts you already us
 | **HDS 3 (Binding)** | Electrostatic & Hydrogen Bonds | Low-density tail regions where weak attractions (hydrogen bonds, Van der Waals, polar interactions) occur. |
 | **Specific Phase Friction ($E_{\text{spec}}$)** | Molecular Stacking / Wave Gradient Energy | A measure of how cleanly the ligand's matter waves overlap with the protein target. Calculated as: $E_{\text{spec}} = \frac{\int |\nabla \psi|^2 d^3r}{\int |\psi|^2 d^3r}$. |
 | **Friction Shift ($\Delta E$)** | Relative Binding Energy / Score | Calculated as $\Delta E = E_{\text{complex}} - E_{\text{target}}$. A negative shift ($\Delta E < 0$) indicates stable binding. A positive shift ($\Delta E > 0$) signifies a steric clash. |
+| **Lability Index ($L_{\text{sol}}$)** | Dynamical Soliton Lability | Langevin-perturbed lability. Measures wave stability under thermal noise. $L_{\text{sol}} < 0.05$ indicates a rigid Blocker/Antagonist; $L_{\text{sol}} \in [0.05, 0.15]$ indicates an Activator/Agonist; $L_{\text{sol}} > 0.15$ indicates steric clash. |
 | **Verlet Wave Relaxation** | Energy Minimization / Optimization | Resolving the wave fields over time to find the lowest-energy structural conformation inside the pocket. |
 
 ---
@@ -29,12 +30,12 @@ Here is how EFM concepts map directly to the biochemical concepts you already us
 Follow these steps to analyze a target-ligand interaction:
 
 ### Step 1: Load your Target Protein
-1. Enter a four-letter PDB ID (e.g., `1HSG` for HIV-1 Protease) in the **Target Protein** input, or search for proteins by name (e.g., `protease`).
-2. Click **Fetch PDB**. The application queries the RCSB Protein Data Bank, downloads the structure, and automatically centers the simulation grid on the active pocket (e.g., the catalytic Asp25 residues in HIV-1 Protease).
+1. Enter a four-letter PDB ID (e.g., `1HSG` for HIV-1 Protease) in the **Target Protein** input, or select a pre-calibrated target from the **Quick-Load NTD Target Template** dropdown (e.g. *Plasmodium falciparum* DHFR `1J3J` or *Mycobacterium tuberculosis* InhA `1ZID`).
+2. Click **Fetch PDB**. The application queries the RCSB Protein Data Bank, downloads the structure, and automatically centers the simulation grid on the active pocket using the template's pre-calibrated pocket center.
 
 ### Step 2: Load your Ligand or Phytocompound
-1. Enter the chemical name of your ligand (e.g., `Artemisinin`, `Quinine`, or `Saquinavir`) in the **Ligand** input box.
-2. Click **Fetch PubChem** to retrieve its 3D coordinate SDF file.
+1. Toggle the ligand source dropdown to choose between **Search Online (PubChem)** or **Cached African Natural Product Library** (which lists 15 active phytocompounds isolated from local plants, such as Artemisinin or Cryptolepine, working fully offline).
+2. Enter the chemical name of your ligand and click **Fetch PubChem**, or select one from the Cached Phytocompound dropdown.
 
 ### Step 3: Run the Docking Assay
 1. Click **Run EFM Docking**.
@@ -45,7 +46,22 @@ Follow these steps to analyze a target-ligand interaction:
 
 ---
 
-## 3. Understanding Solver Parameters
+## 3. Advanced Features for Resource-Constrained Environments
+
+### 1. Low-Spec CPU Optimization Mode
+Resource-constrained laboratories often run simulations on dual-core or quad-core consumer laptops. 
+- Enable the **Low-Spec CPU Optimization Mode** checkbox.
+- This dynamically scales the grid down to $24^3$ (minimizing memory overhead) and restricts PyTorch to `cores - 1` CPU threads. This prevents thread saturation, keeping the desktop GUI completely smooth and responsive during long simulation loops.
+
+### 2. Multi-Ligand Synergy Docking
+Phytochemical extracts (herbal remedies) often work through synergy, where multiple active compounds co-bind a pocket to stabilize it.
+- Toggle **Synergy Mode** in the Synergy Pool box.
+- Fetch a compound and click **Add to Pool** (up to 3 compounds can be co-docked).
+- Click **Run Synergy Docking**. The EFM solver will evolve the complex potential under the combined nuclear fields of all pool ligands, rendering them simultaneously in the 3D viewer and calculating their cooperative specific phase friction shift.
+
+---
+
+## 4. Understanding Solver Parameters
 
 If a simulation fails to converge or runs slowly, adjust these sliders:
 
@@ -61,3 +77,4 @@ If a simulation fails to converge or runs slowly, adjust these sliders:
 *   **Damping ($\delta$)**: Damps the kinetic energy of the waves during relaxation.
     *   *Default*: `0.2`.
     *   *Biochemical use*: Lower values allow the system to escape local energy barriers; higher values speed up relaxation but can cause premature convergence in unstable wells.
+

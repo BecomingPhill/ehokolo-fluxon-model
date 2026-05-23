@@ -100,6 +100,11 @@
                             <td>Analogous to Free Energy Change (<span class="math-expr">&Delta;<var>G</var></span>). Calculated as: <span class="math-expr">&Delta;<var>E</var> = <var>E</var><sub>complex</sub> - <var>E</var><sub>target</sub></span>. A negative shift indicates stable binding; positive indicates steric clash.</td>
                         </tr>
                         <tr>
+                            <td><strong>Lability Index (<span class="math-expr"><var>L</var><sub>sol</sub></span>)</strong></td>
+                            <td>Dynamical Soliton Lability</td>
+                            <td>Measures matter wave stability under Langevin thermal noise perturbation. A low lability index indicates a rigid Blocker; a moderate one indicates an Activator.</td>
+                        </tr>
+                        <tr>
                             <td><strong>Verlet Wave Relaxation</strong></td>
                             <td>Geometry Optimization</td>
                             <td>Iterative numerical integration that dampens kinetic energy to find the lowest energy conformation of the wave fields.</td>
@@ -148,6 +153,11 @@
                 <div class="callout warning">
                     <strong>Stability Warning:</strong> Setting the damping too low (e.g. < 0.1) can cause waves to oscillate indefinitely, preventing convergence. Setting it too high (e.g. > 0.4) might converge too quickly, trapping the system in a local metadata bottleneck rather than a global minimum.
                 </div>
+
+                <h3>5. Low-Spec Hardware Mode</h3>
+                <p>
+                    Enable this option if you are running calculations on dual-core or quad-core consumer laptops. It downscales the resolution to 24³ and restricts the solver thread pool to leave one CPU core free, ensuring the desktop GUI remains responsive during simulation runs.
+                </p>
             </section>
 
             <!-- Docking Workflow -->
@@ -158,10 +168,10 @@
                 </p>
                 <ol>
                     <li>
-                        <strong>Structure Setup:</strong> In the PDB input box, enter a PDB ID (e.g. <code>1HSG</code> for HIV-1 Protease) and click <strong>Fetch PDB</strong>. The app downloads the coordinate structure and automatically calculates the active site pocket center based on Asp25/Asp25'.
+                        <strong>Structure Setup:</strong> In the PDB input box, enter a PDB ID (e.g. <code>1HSG</code> for HIV-1 Protease) and click <strong>Fetch PDB</strong>, or select a pre-calibrated template from the **Quick-Load NTD Target Template** dropdown (e.g. *Plasmodium falciparum* DHFR `1J3J` or *Mycobacterium tuberculosis* InhA `1ZID`).
                     </li>
                     <li>
-                        <strong>Load Ligand:</strong> Enter a chemical name (e.g. <code>Artemisinin</code>, <code>Quinine</code>, or a clinical protease inhibitor like <code>Saquinavir</code>) in the ligand input box and click <strong>Fetch PubChem</strong> to retrieve its 3D SDF coordinates.
+                        <strong>Load Ligand:</strong> Switch the Ligand source dropdown to search PubChem online or load directly from the cached **African Natural Product Library** (containing 15 active phytocompounds isolated from local plants like Artemisinin or Cryptolepine, working fully offline).
                     </li>
                     <li>
                         <strong>Execute Docking:</strong> Click <strong>Run EFM Docking</strong>. The background FastAPI server feeds the structure to the PyTorch engine, centers the simulation grid, and relaxes the fields.
@@ -172,7 +182,11 @@
                             <li><strong>Target Phase Energy (E<sub>A</sub>):</strong> Empty active pocket friction.</li>
                             <li><strong>Complex Phase Energy (E<sub>AB</sub>):</strong> Combined protein-ligand friction.</li>
                             <li><strong>Relative Binding Score (&Delta;E):</strong> The final binding shift. If &Delta;E is negative, a stable, low-friction wave overlap has succeeded! If positive, a steric clash occurred.</li>
+                            <li><strong>Lability Index (L<sub>sol</sub>):</strong> Langevin-perturbed wave stability indicating active-site target binding mode (Blocker vs Activator).</li>
                         </ul>
+                    </li>
+                    <li>
+                        <strong>Synergy Docking:</strong> Toggle **Synergy Mode**, load up to 3 compounds sequentially, click **Add to Pool** for each, and click **Run Synergy Docking** to analyze cooperative multi-ligand binding of phytochemical synergy pools.
                     </li>
                 </ol>
             </section>
@@ -207,7 +221,11 @@
                 <ul>
                     <li><strong>POST /fetch_target</strong>: Fetch a target structure by PDB ID.</li>
                     <li><strong>POST /fetch_ligand</strong>: Fetch a ligand structure by PubChem name.</li>
-                    <li><strong>POST /run_screening</strong>: Run EFM NLKG simulation on target and ligand atoms.</li>
+                    <li><strong>GET /natural_products</strong>: Get list of cached African natural product library molecules.</li>
+                    <li><strong>GET /fetch_natural_product/{id}</strong>: Fetch cached natural product details and SDF coordinates.</li>
+                    <li><strong>GET /ntd_templates</strong>: Get list of pre-calibrated NTD target templates.</li>
+                    <li><strong>POST /run_screening</strong>: Run EFM screening on target and ligand atoms.</li>
+                    <li><strong>POST /run_synergy_screening</strong>: Run EFM synergy screening on target and multiple ligands.</li>
                     <li><strong>POST /run_evolution</strong>: Run Shz-1 de novo evolution.</li>
                 </ul>
             </section>

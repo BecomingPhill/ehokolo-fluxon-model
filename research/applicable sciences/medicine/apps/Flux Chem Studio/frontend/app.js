@@ -5,6 +5,7 @@ let ligandAtoms = [];
 let pocketCenter = null;
 let rawPdbContent = "";
 let rawSdfContent = "";
+let synergyPool = [];
 
 // Initialize 3Dmol.js viewer
 const viewport = document.getElementById("viewport-3d");
@@ -70,8 +71,25 @@ function updateViewerStyle() {
         viewer.setStyle({ model: m_target }, { stick: { colorscheme: 'carbon', radius: 0.1 } });
     }
     
-    // Add Ligand model if loaded
-    if (rawSdfContent) {
+    const synergyMode = document.getElementById("synergy-mode-toggle") && document.getElementById("synergy-mode-toggle").checked;
+    
+    // Add Synergy Pool Ligand models if Synergy Mode is active
+    if (synergyMode && synergyPool.length > 0) {
+        const colors = ['greenCarbon', 'purpleCarbon', 'yellowCarbon'];
+        synergyPool.forEach((lig, index) => {
+            if (lig.rawSdf) {
+                try {
+                    const m_lig = viewer.addModel(lig.rawSdf, "sdf");
+                    const color = colors[index % colors.length];
+                    viewer.setStyle({ model: m_lig }, { sphere: { scale: 0.9, colorscheme: color }, stick: { colorscheme: color, radius: 0.2 } });
+                } catch (err) {
+                    console.error("Failed to load synergy pool ligand model:", err);
+                }
+            }
+        });
+        viewer.zoomTo();
+    } else if (rawSdfContent) {
+        // Add single Ligand model if loaded
         try {
             const m_ligand = viewer.addModel(rawSdfContent, "sdf");
             viewer.setStyle({ model: m_ligand }, { sphere: { scale: 0.9, colorscheme: 'greenCarbon' }, stick: { colorscheme: 'greenCarbon', radius: 0.2 } });
@@ -344,6 +362,9 @@ document.getElementById("fetch-ligand-btn").addEventListener("click", async () =
         infoEl.textContent = `Ligand '${name}' Loaded. Total Atoms: ${ligandAtoms.length}`;
         infoEl.style.borderLeftColor = "var(--accent-teal)";
         
+        // Enable Add to pool
+        document.getElementById("add-to-pool-btn").disabled = false;
+        
         updateViewerStyle();
     } catch (e) {
         infoEl.textContent = `Error loading compound: ${e.message}`;
@@ -358,30 +379,64 @@ document.getElementById("run-docking-btn").addEventListener("click", async () =>
         alert("Please load a target protein first.");
         return;
     }
-    if (ligandAtoms.length === 0) {
-        alert("Please load a compound / ligand first by clicking 'Fetch PubChem'.");
-        return;
+    
+    const synergyMode = document.getElementById("synergy-mode-toggle") && document.getElementById("synergy-mode-toggle").checked;
+    
+    if (synergyMode) {
+        if (synergyPool.length === 0) {
+            alert("Synergy Pool is empty. Please add compounds to the pool first.");
+            return;
+        }
+    } else {
+        if (ligandAtoms.length === 0) {
+            alert("Please load a compound / ligand first.");
+            return;
+        }
     }
     
     const statusEl = document.getElementById("binding-status");
     statusEl.className = "binding-status";
-    statusEl.textContent = "Running EFM NLKG simulation & field relaxation...";
+    statusEl.textContent = synergyMode ? "Running EFM multi-ligand synergy simulation..." : "Running EFM NLKG simulation & field relaxation...";
     
     const steps = parseInt(document.getElementById("sim-steps").value);
     const targetClass = document.getElementById("target-class-select").value;
+    const gridSize = parseInt(document.getElementById("grid-size").value);
+    const boxSize = parseFloat(document.getElementById("box-size").value);
+    const lowSpecMode = document.getElementById("low-spec-toggle").checked;
     
     try {
-        const response = await fetch(`${BACKEND_URL}/run_screening`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                target_atoms: targetAtoms,
-                ligand_atoms: ligandAtoms,
-                pocket_center: pocketCenter,
-                simulation_steps: steps,
-                target_class: targetClass
-            })
-        });
+        let response;
+        if (synergyMode) {
+            response = await fetch(`${BACKEND_URL}/run_synergy_screening`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    target_atoms: targetAtoms,
+                    ligands: synergyPool.map(c => c.atoms),
+                    pocket_center: pocketCenter,
+                    simulation_steps: steps,
+                    target_class: targetClass,
+                    grid_size: gridSize,
+                    box_size: boxSize,
+                    low_spec_mode: lowSpecMode
+                })
+            });
+        } else {
+            response = await fetch(`${BACKEND_URL}/run_screening`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    target_atoms: targetAtoms,
+                    ligand_atoms: ligandAtoms,
+                    pocket_center: pocketCenter,
+                    simulation_steps: steps,
+                    target_class: targetClass,
+                    grid_size: gridSize,
+                    box_size: boxSize,
+                    low_spec_mode: lowSpecMode
+                })
+            });
+        }
         
         if (!response.ok) throw new Error(await response.text());
         
@@ -436,7 +491,10 @@ document.getElementById("run-evolution-btn").addEventListener("click", async () 
                 mutations: [], // Replaced by topological growth
                 pocket_center: pocketCenter,
                 simulation_steps: steps,
-                target_class: document.getElementById("target-class-select").value
+                target_class: document.getElementById("target-class-select").value,
+                grid_size: parseInt(document.getElementById("grid-size").value),
+                box_size: parseFloat(document.getElementById("box-size").value),
+                low_spec_mode: document.getElementById("low-spec-toggle").checked
             })
         });
         
@@ -549,6 +607,7 @@ function resetSimulationState() {
 function clearApp() {
     targetAtoms = [];
     ligandAtoms = [];
+    synergyPool = [];
     pocketCenter = null;
     rawPdbContent = "";
     rawSdfContent = "";
@@ -556,6 +615,18 @@ function clearApp() {
     document.getElementById("pdb-id-input").value = "";
     document.getElementById("compound-name-input").value = "";
     document.getElementById("target-class-select").value = "General";
+    document.getElementById("ntd-target-select").value = "";
+    document.getElementById("ligand-source-select").value = "pubchem";
+    document.getElementById("pubchem-input-group").classList.remove("hidden");
+    document.getElementById("african-db-input-group").classList.add("hidden");
+    document.getElementById("natural-product-select").value = "";
+    document.getElementById("low-spec-toggle").checked = false;
+    document.getElementById("grid-size").disabled = false;
+    document.getElementById("synergy-mode-toggle").checked = false;
+    document.getElementById("run-docking-btn").textContent = "Run EFM Docking";
+    document.getElementById("run-docking-btn").className = "action-btn success-btn";
+    
+    updateSynergyPoolUI();
     
     const targetInfo = document.getElementById("target-info");
     if (targetInfo) {
@@ -585,10 +656,13 @@ function exportResults() {
     const scoreDelta = document.getElementById("score-delta").textContent;
     const scorePki = document.getElementById("score-pki").textContent;
     const scoreLability = document.getElementById("score-lability").textContent;
+    const synergyMode = document.getElementById("synergy-mode-toggle") && document.getElementById("synergy-mode-toggle").checked;
     
     const results = {
         target_pdb: pdbId,
         target_class: targetClass,
+        synergy_mode: synergyMode,
+        synergy_compounds: synergyMode ? synergyPool.map(c => c.name) : [],
         scores: {
             E_target: scoreEa,
             E_complex: scoreEab,
@@ -596,16 +670,27 @@ function exportResults() {
             predicted_pki: scorePki,
             lability_index: scoreLability
         },
-        sdf_content: rawSdfContent
+        sdf_content: synergyMode ? synergyPool.map(c => c.rawSdf).join("\n") : rawSdfContent
     };
     
     const jsonStr = JSON.stringify(results, null, 2);
     
     // If running in pywebview, use native file save dialogs to prevent page redirection
     if (window.pywebview && window.pywebview.api && window.pywebview.api.save_file) {
-        window.pywebview.api.save_file(`flux_chem_results_${pdbId}.json`, jsonStr).then(resJson => {
+        const jsonName = synergyMode ? `flux_chem_synergy_results_${pdbId}.json` : `flux_chem_results_${pdbId}.json`;
+        window.pywebview.api.save_file(jsonName, jsonStr).then(resJson => {
             if (resJson && resJson.success) {
-                if (rawSdfContent) {
+                if (synergyMode && synergyPool.length > 0) {
+                    const sdfName = `synergy_ligands_${pdbId}.sdf`;
+                    const combinedSdf = synergyPool.map(c => c.rawSdf).join("\n");
+                    window.pywebview.api.save_file(sdfName, combinedSdf).then(resSdf => {
+                        if (resSdf && resSdf.success) {
+                            alert(`Results exported successfully:\n- ${resJson.path}\n- ${resSdf.path}`);
+                        } else if (resSdf && resSdf.error !== "cancelled") {
+                            alert(`Error exporting SDF file: ${resSdf.error}`);
+                        }
+                    });
+                } else if (rawSdfContent) {
                     const isEvolved = document.getElementById("evolution-log").textContent.includes("Selected Scaffold");
                     const sdfName = isEvolved ? `evolved_scaffold_${pdbId}.sdf` : `ligand_${pdbId}.sdf`;
                     window.pywebview.api.save_file(sdfName, rawSdfContent).then(resSdf => {
@@ -677,9 +762,261 @@ async function fetchVersion() {
     }
 }
 
+// Fetch NTD targets on startup
+async function loadNtdTemplates() {
+    try {
+        const res = await fetch(`${BACKEND_URL}/ntd_templates`);
+        if (res.ok) {
+            const templates = await res.json();
+            const select = document.getElementById("ntd-target-select");
+            templates.forEach(t => {
+                const opt = document.createElement("option");
+                opt.value = JSON.stringify({ pdb_id: t.pdb_id, center: t.center, target_class: t.target_class, name: t.name });
+                opt.textContent = `${t.name} (${t.pdb_id})`;
+                select.appendChild(opt);
+            });
+        }
+    } catch (e) {
+        console.error("Failed to load NTD templates:", e);
+    }
+}
+
+// Fetch Natural Products on startup
+async function loadNaturalProducts() {
+    try {
+        const res = await fetch(`${BACKEND_URL}/natural_products`);
+        if (res.ok) {
+            const products = await res.json();
+            const select = document.getElementById("natural-product-select");
+            products.forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p.id;
+                opt.textContent = `${p.name} [${p.source_organism}] - ${p.therapeutic_area}`;
+                select.appendChild(opt);
+            });
+        }
+    } catch (e) {
+        console.error("Failed to load Natural Products:", e);
+    }
+}
+
+// Bind NTD Target dropdown change
+document.getElementById("ntd-target-select").addEventListener("change", async (e) => {
+    const val = e.target.value;
+    if (!val) return;
+    
+    if (hasUnsavedResults()) {
+        if (!confirm("You have unsaved simulation results. Loading a template will discard them. Do you want to proceed?")) {
+            e.target.value = "";
+            return;
+        }
+    }
+    
+    const template = JSON.parse(val);
+    document.getElementById("pdb-id-input").value = template.pdb_id;
+    
+    const infoEl = document.getElementById("target-info");
+    infoEl.className = "loaded-info";
+    infoEl.textContent = `Fetching NTD Target Template ${template.name} (${template.pdb_id})...`;
+    infoEl.style.borderLeftColor = "var(--accent-purple)";
+    
+    // Clear simulation states
+    resetSimulationState();
+    
+    try {
+        const response = await fetch(`${BACKEND_URL}/fetch_target`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pdb_id: template.pdb_id })
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        targetAtoms = data.atoms;
+        rawPdbContent = data.raw_pdb;
+        
+        // Override to pre-calibrated center coordinate
+        pocketCenter = template.center;
+        
+        document.getElementById("target-class-select").value = template.target_class || "General";
+        
+        infoEl.textContent = `PDB ${template.pdb_id} (${template.name}) Loaded. Pre-calibrated Pocket Center: [${pocketCenter.map(v => v.toFixed(2)).join(', ')}]. Calibration: ${template.target_class || "General"}.`;
+        infoEl.style.borderLeftColor = "var(--accent-teal)";
+        
+        updateViewerStyle();
+    } catch (err) {
+        infoEl.textContent = `Error loading template target: ${err.message}`;
+        infoEl.style.borderLeftColor = "var(--accent-magenta)";
+    }
+});
+
+// Bind ligand source select change
+const sourceSelect = document.getElementById("ligand-source-select");
+if (sourceSelect) {
+    sourceSelect.addEventListener("change", (e) => {
+        const val = e.target.value;
+        if (val === "pubchem") {
+            document.getElementById("pubchem-input-group").classList.remove("hidden");
+            document.getElementById("african-db-input-group").classList.add("hidden");
+        } else {
+            document.getElementById("pubchem-input-group").classList.add("hidden");
+            document.getElementById("african-db-input-group").classList.remove("hidden");
+        }
+    });
+}
+
+// Bind Natural Product dropdown change
+document.getElementById("natural-product-select").addEventListener("change", async (e) => {
+    const npId = e.target.value;
+    if (!npId) return;
+    
+    if (hasUnsavedResults()) {
+        if (!confirm("You have unsaved simulation results. Loading a new compound will discard them. Do you want to proceed?")) {
+            e.target.value = "";
+            return;
+        }
+    }
+    
+    const infoEl = document.getElementById("ligand-info");
+    infoEl.className = "loaded-info";
+    infoEl.textContent = "Loading cached phytocompound...";
+    infoEl.style.borderLeftColor = "var(--accent-purple)";
+    
+    // Clear simulation states
+    resetSimulationState();
+    
+    try {
+        const res = await fetch(`${BACKEND_URL}/fetch_natural_product/${npId}`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        
+        ligandAtoms = data.atoms;
+        rawSdfContent = data.raw_sdf;
+        
+        infoEl.textContent = `Phytocompound '${data.name}' Loaded. [Source: ${data.source_organism}]`;
+        infoEl.style.borderLeftColor = "var(--accent-teal)";
+        
+        // Enable Add to Pool button
+        document.getElementById("add-to-pool-btn").disabled = false;
+        
+        updateViewerStyle();
+    } catch (err) {
+        infoEl.textContent = `Error loading cached phytocompound: ${err.message}`;
+        infoEl.style.borderLeftColor = "var(--accent-magenta)";
+    }
+});
+
+// Bind Low-Spec Mode checkbox change
+document.getElementById("low-spec-toggle").addEventListener("change", (e) => {
+    const checked = e.target.checked;
+    const gridSlider = document.getElementById("grid-size");
+    const gridVal = document.getElementById("grid-val");
+    
+    if (checked) {
+        gridSlider.value = 24;
+        gridVal.textContent = "24";
+        gridSlider.disabled = true;
+    } else {
+        gridSlider.disabled = false;
+    }
+});
+
+// Bind Synergy Pool buttons
+const addPoolBtn = document.getElementById("add-to-pool-btn");
+const clearPoolBtn = document.getElementById("clear-pool-btn");
+const poolList = document.getElementById("synergy-pool-list");
+const synergyToggle = document.getElementById("synergy-mode-toggle");
+
+if (addPoolBtn) {
+    addPoolBtn.addEventListener("click", () => {
+        if (ligandAtoms.length === 0 || !rawSdfContent) {
+            alert("Please fetch or load a compound first.");
+            return;
+        }
+        
+        const isFromDb = document.getElementById("ligand-source-select").value === "african_db";
+        let compName = "";
+        if (isFromDb) {
+            const selectEl = document.getElementById("natural-product-select");
+            compName = selectEl.options[selectEl.selectedIndex].text.split(" [")[0];
+        } else {
+            compName = document.getElementById("compound-name-input").value.trim();
+        }
+        if (!compName) compName = "Compound";
+        
+        // Check if already in pool
+        if (synergyPool.some(c => c.name === compName)) {
+            alert(`${compName} is already in the synergy pool.`);
+            return;
+        }
+        
+        synergyPool.push({
+            name: compName,
+            atoms: ligandAtoms,
+            rawSdf: rawSdfContent
+        });
+        
+        updateSynergyPoolUI();
+        updateViewerStyle();
+        
+        if (synergyPool.length >= 3) {
+            addPoolBtn.disabled = true;
+        }
+    });
+}
+
+if (clearPoolBtn) {
+    clearPoolBtn.addEventListener("click", () => {
+        synergyPool = [];
+        updateSynergyPoolUI();
+        updateViewerStyle();
+    });
+}
+
+function updateSynergyPoolUI() {
+    if (synergyPool.length === 0) {
+        poolList.innerHTML = "Synergy pool is empty. Load a compound and click 'Add to Pool'.";
+        clearPoolBtn.disabled = true;
+        addPoolBtn.disabled = (ligandAtoms.length === 0);
+    } else {
+        poolList.innerHTML = "";
+        synergyPool.forEach((c, idx) => {
+            const item = document.createElement("div");
+            item.style.display = "flex";
+            item.style.justify = "space-between";
+            item.style.background = "rgba(255,255,255,0.05)";
+            item.style.padding = "5px 10px";
+            item.style.borderRadius = "4px";
+            item.style.borderLeft = `3px solid ${['var(--accent-teal)', 'var(--accent-magenta)', 'orange'][idx % 3]}`;
+            item.innerHTML = `
+                <span><strong>Ligand ${idx+1}:</strong> ${c.name} (${c.atoms.length} atoms)</span>
+            `;
+            poolList.appendChild(item);
+        });
+        clearPoolBtn.disabled = false;
+        addPoolBtn.disabled = (synergyPool.length >= 3 || ligandAtoms.length === 0);
+    }
+}
+
+if (synergyToggle) {
+    synergyToggle.addEventListener("change", (e) => {
+        const checked = e.target.checked;
+        const dockingBtn = document.getElementById("run-docking-btn");
+        if (checked) {
+            dockingBtn.textContent = "Run Synergy Docking";
+            dockingBtn.className = "action-btn info-btn";
+        } else {
+            dockingBtn.textContent = "Run EFM Docking";
+            dockingBtn.className = "action-btn success-btn";
+        }
+        updateViewerStyle();
+    });
+}
+
 // Auto-load 1HSG (HIV Protease) on start
 window.addEventListener("DOMContentLoaded", () => {
     fetchVersion();
+    loadNtdTemplates();
+    loadNaturalProducts();
     fetchTarget("1HSG");
 });
 

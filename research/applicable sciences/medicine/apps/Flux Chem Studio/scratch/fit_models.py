@@ -128,9 +128,19 @@ for cls, pts in grouped_points.items():
     
     # Try all subsets of size 1, 2, 3
     num_features = X_all.shape[1]
+    energy_features = {
+        "delta_E", "E_complex", "delta_E_over_z", "delta_E_over_n", 
+        "delta_E_times_z", "delta_E_times_n", "delta_E_over_E_target", 
+        "E_complex_over_E_target", "inv_E_complex", "delta_E_sq", "E_complex_sq"
+    }
     for k in [1, 2, 3]:
         for comb in combinations(range(num_features), k):
             indices = list(comb)
+            
+            # Enforce that at least one EFM energy-dependent term is included
+            if not any(feature_names[idx] in energy_features for idx in indices):
+                continue
+                
             X = X_all[:, indices]
             # Add intercept column
             X_design = np.hstack([np.ones((X.shape[0], 1)), X])

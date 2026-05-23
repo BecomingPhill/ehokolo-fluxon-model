@@ -44,6 +44,11 @@
                         <input type="text" id="pdb-id-input" placeholder="e.g. 1HSG" value="1HSG">
                         <button id="fetch-target-btn" class="primary-btn">Fetch PDB</button>
                     </div>
+                    <div class="input-row" style="margin-top: 8px;">
+                        <select id="ntd-target-select" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none; border-color: rgba(255, 255, 255, 0.15); cursor: pointer;">
+                            <option value="">Quick-Load NTD Target Template...</option>
+                        </select>
+                    </div>
                     <div class="search-helper">
                         <input type="text" id="search-query" placeholder="Search targets (e.g. protease)">
                         <button id="search-target-btn" class="secondary-btn">Search</button>
@@ -56,13 +61,44 @@
                 <div class="control-group">
                     <label class="group-title">
                         Ligand / Phytocompound
-                        <span class="info-icon" data-tooltip="Fetch a ligand structure SDF file from PubChem (e.g. Artemisinin). The solver will test its wave compatibility with the target pocket.">i</span>
+                        <span class="info-icon" data-tooltip="Fetch a ligand structure SDF file from PubChem or load from the local cached African Natural Product Library.">i</span>
                     </label>
-                    <div class="input-row">
+                    <div class="input-row" style="margin-bottom: 8px;">
+                        <select id="ligand-source-select" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none; border-color: rgba(255, 255, 255, 0.15); cursor: pointer;">
+                            <option value="pubchem">Search Online (PubChem)</option>
+                            <option value="african_db">Cached African Natural Product Library</option>
+                        </select>
+                    </div>
+                    <div id="pubchem-input-group" class="input-row">
                         <input type="text" id="compound-name-input" placeholder="e.g. Artemisinin, Quinine">
                         <button id="fetch-ligand-btn" class="primary-btn">Fetch PubChem</button>
                     </div>
+                    <div id="african-db-input-group" class="input-row hidden">
+                        <select id="natural-product-select" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-family: inherit; font-size: 13px; outline: none; border-color: rgba(255, 255, 255, 0.15); cursor: pointer;">
+                            <option value="">Select Cached Phytocompound...</option>
+                        </select>
+                    </div>
                     <div class="loaded-info" id="ligand-info">No ligand loaded.</div>
+                </div>
+
+                <!-- Synergy Pool Control Group -->
+                <div class="control-group" style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 15px; margin-top: 15px;">
+                    <label class="group-title" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <span>
+                            Multi-Ligand Synergy Pool
+                            <span class="info-icon" data-tooltip="Allows loading and docking multiple compounds simultaneously to simulate phytochemical synergy. Add up to 3 compounds to the pool.">i</span>
+                        </span>
+                        <label style="font-size: 11px; color: var(--accent-teal); display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" id="synergy-mode-toggle" style="accent-color: var(--accent-teal); cursor: pointer;"> Synergy Mode
+                        </label>
+                    </label>
+                    <div id="synergy-pool-list" style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px dashed var(--border-color); font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; min-height: 40px; display: flex; flex-direction: column; gap: 5px;">
+                        Synergy pool is empty. Load a compound and click "Add to Pool".
+                    </div>
+                    <div class="actions-row">
+                        <button id="add-to-pool-btn" class="action-btn secondary-btn" style="padding: 6px; font-size: 12px; flex: 1;" disabled>Add to Pool</button>
+                        <button id="clear-pool-btn" class="action-btn secondary-btn" style="padding: 6px; font-size: 12px; flex: 1;" disabled>Clear Pool</button>
+                    </div>
                 </div>
 
                 <h2>2. EFM Biophysics Parameters</h2>
@@ -118,7 +154,7 @@
                                 <span class="info-icon" data-tooltip="Selected target family to apply calibrated linear regression parameters for predicting experimental pKi.">i</span>
                             </span>
                         </div>
-                        <select id="target-class-select" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-top: 6px; font-family: inherit; font-size: 13px; outline: none; border-color: rgba(255, 255, 255, 0.15);">
+                        <select id="target-class-select" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); margin-top: 6px; font-family: inherit; font-size: 13px; outline: none; border-color: rgba(255, 255, 255, 0.15); cursor: pointer;">
                             <option value="General">General / Global Calibration</option>
                             <option value="DHFR">Dihydrofolate Reductase (DHFR)</option>
                             <option value="Carbonic Anhydrase">Carbonic Anhydrase</option>
@@ -130,6 +166,14 @@
                             <option value="Nuclear Receptor">Nuclear Receptor</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="param-slider" style="margin-top: 15px; margin-bottom: 15px; display: flex; flex-direction: row; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="low-spec-toggle" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-teal);">
+                    <label for="low-spec-toggle" style="font-size: 12px; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: 500; user-select: none;">
+                        Low-Spec CPU Optimization Mode
+                        <span class="info-icon" data-tooltip="Restricts grid size to 24³ and PyTorch to (cores-1) CPU threads to prevent system lag on standard laptops.">i</span>
+                    </label>
                 </div>
 
                 <div class="actions-row">

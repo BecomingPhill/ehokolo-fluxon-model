@@ -109,3 +109,53 @@ def test_lability_index():
     assert isinstance(lability, float)
     assert lability >= 0.0
 
+def test_natural_products_api():
+    import asyncio
+    from engine.server import get_natural_products, fetch_natural_product
+    
+    # Test get list
+    products = asyncio.run(get_natural_products())
+    assert isinstance(products, list)
+    assert len(products) > 0
+    assert products[0]["name"] == "Artemisinin"
+    
+    # Test fetch single product
+    prod_data = asyncio.run(fetch_natural_product(1))
+    assert prod_data["name"] == "Artemisinin"
+    assert "atoms" in prod_data
+    assert len(prod_data["atoms"]) > 0
+
+def test_ntd_templates_api():
+    import asyncio
+    from engine.server import get_ntd_templates
+    
+    templates = asyncio.run(get_ntd_templates())
+    assert isinstance(templates, list)
+    assert len(templates) == 6
+    assert templates[0]["pdb_id"] == "1J3J"
+
+def test_synergy_screening_api():
+    import asyncio
+    from engine.server import run_synergy_screening, SynergyScreeningRequest, AtomData
+    
+    # 2 ligands, each has 1 atom (Carbon and Oxygen)
+    req = SynergyScreeningRequest(
+        target_atoms=[AtomData(element="C", x=0.0, y=0.0, z=0.0)],
+        ligands=[
+            [AtomData(element="C", x=2.0, y=0.0, z=0.0)],
+            [AtomData(element="O", x=0.0, y=2.0, z=0.0)]
+        ],
+        pocket_center=[0.0, 0.0, 0.0],
+        simulation_steps=10,
+        grid_size=16,
+        box_size=10.0,
+        low_spec_mode=True
+    )
+    
+    res = asyncio.run(run_synergy_screening(req))
+    assert "delta_E" in res
+    assert "efm_score" in res
+    assert "predicted_pki" in res
+    assert isinstance(res["delta_E"], float)
+
+

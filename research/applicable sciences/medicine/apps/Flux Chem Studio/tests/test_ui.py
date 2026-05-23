@@ -72,6 +72,7 @@ def test_frontend_ui(server_url):
         # Slide grid resolution to 48 and verify UI label changes
         grid_slider.fill("48")
         assert page.locator("#grid-val").text_content() == "48"
+        grid_slider.fill("32")
         
         # Slide box size to 24 and verify label
         box_slider = page.locator("#box-size")
@@ -84,6 +85,7 @@ def test_frontend_ui(server_url):
         assert steps_slider.is_visible()
         steps_slider.fill("800")
         assert page.locator("#steps-val").text_content() == "800"
+        steps_slider.fill("300")
         
         # Slide damping (delta) to 0.35 and verify label
         damping_slider = page.locator("#damping")

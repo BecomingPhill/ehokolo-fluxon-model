@@ -33,23 +33,34 @@ graph TD
 
 ## 2. Mathematical Equations
 
-The Eholoko Fluxon Model (EFM) score is derived from the **Nonlinear Klein-Gordon (NLKG)** equation:
+The Eholoko Fluxon Model (EFM) biophysical solver relaxes a complex matter wave field $\psi(\mathbf{r}, t)$ under a multi-centered nuclear core potential $V_{\text{nuc}}(\mathbf{r})$ using the damped wave Nonlinear Klein-Gordon (NLKG) equation:
 
-$$\nabla^2 \phi - m^2 \phi + \lambda \phi^3 = -4\pi \rho(\mathbf{r})$$
+$$\frac{\partial^2 \psi}{\partial t^2} + \delta \frac{\partial \psi}{\partial t} = c^2 \nabla^2 \psi - (m^2 + g|\psi|^2 + \eta|\psi|^4)\psi - V_{\text{nuc}}(\mathbf{r})\psi$$
 
 Where:
-- $\phi$ is the electrostatic potential.
-- $m$ is the screening parameter representing the ionic strength of the pocket.
-- $\lambda$ is the self-interaction coupling constant representing local dielectric polarization.
-- $\rho(\mathbf{r})$ is the 3D density distribution of the protein atoms.
+- $\psi = \psi_r + i\psi_i$ is the complex scalar wave representing the system state.
+- $\delta$ is the kinetic damping coefficient that forces convergence to the ground state.
+- $m^2, g, \eta$ are the biophysical Periodic Table density constants corresponding to the Harmonic Density States (HDS 1: Core, HDS 2: Mantle, HDS 3: Binding).
+- $V_{\text{nuc}}(\mathbf{r})$ is the multi-body nuclear core potential.
 
-The EFM docking score $S_{\text{EFM}}$ is computed over the overlap of the ligand density $\rho_L$ and the potential field $\phi_P$:
+To prevent grid aliasing and singularities, the potential cores are regularized using State-Dependent Nuclear Shell Scaling (SDNS), where core size scales geometrically with atomic number $Z$:
 
-$$S_{\text{EFM}} = \int \phi_P(\mathbf{r}) \rho_L(\mathbf{r}) \, d^3\mathbf{r}$$
+$$V_{\text{nuc}}(\mathbf{r}) = \sum_i -Z_i \frac{\text{erf}(d_i / \sigma_i)}{d_i + \epsilon}$$
 
-To correct for ligand size bias, the score is normalized by the number of heavy atoms $N$:
+where $\sigma_i = \sigma_0 (R_H)^{Z_i}$, with EFM constants $R_H = 1.001227$ and $\sigma_0 \approx 0.956$ simulation units.
 
-$$S_{\text{EFM, corrected}} = \frac{S_{\text{EFM}}}{N^{\alpha}}$$
+The docking score is computed from the relaxed field's **Specific Phase Friction** ($E_{\text{spec}}$), which measures matter wave gradient energy:
+
+$$E_{\text{spec}} = \frac{\int |\nabla \psi|^2 \, d^3\mathbf{r}}{\int |\psi|^2 \, d^3\mathbf{r}}$$
+
+The binding score shift $\Delta E$ is:
+
+$$\Delta E = E_{\text{complex}} - E_{\text{target}}$$
+
+To correct for ligand size bias, the score is normalized by the heavy atom count $N$ and atomic charges $Z_{\text{lig}}$:
+
+$$S_{\text{EFM, corrected}} = \text{calculate\_efm\_score}(E_{\text{target}}, E_{\text{complex}}, \Delta E, Z_{\text{lig}}, N)$$
+
 
 ---
 
