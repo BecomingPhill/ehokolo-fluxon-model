@@ -394,6 +394,9 @@ document.getElementById("run-docking-btn").addEventListener("click", async () =>
         // Display calibrated pKi
         document.getElementById("score-pki").textContent = data.predicted_pki ? data.predicted_pki.toFixed(2) : "-";
         
+        // Display lability index and tag
+        document.getElementById("score-lability").textContent = data.lability_index !== undefined ? `${data.lability_index.toFixed(3)} (${data.lability_tag})` : "-";
+        
         if (data.delta_E < 0) {
             statusEl.className = "binding-status success";
             statusEl.innerHTML = `<strong>SUCCESS</strong>: Binding decreases Specific Phase Friction (&Delta;E = ${data.delta_E.toFixed(4)}). Thermodynamically stable covalent/hydrogen-bonded resonance formed.<br/><span style="font-size: 0.95em; opacity: 0.9; display: block; margin-top: 5px;">Calibrated Affinity: pK<sub>i</sub> = ${data.predicted_pki ? data.predicted_pki.toFixed(2) : "-"} (using ${data.calibration_used || "General"})</span>`;
@@ -478,6 +481,7 @@ document.getElementById("run-evolution-btn").addEventListener("click", async () 
         document.getElementById("score-eab").textContent = data.E_complex !== undefined ? data.E_complex.toFixed(4) : "-";
         document.getElementById("score-pki").textContent = (data.predicted_pki !== undefined && data.predicted_pki !== null) ? data.predicted_pki.toFixed(2) : "-";
         document.getElementById("score-delta").textContent = data.best_score.toFixed(4);
+        document.getElementById("score-lability").textContent = data.lability_index !== undefined ? `${data.lability_index.toFixed(3)} (${data.lability_tag})` : "-";
         
         const statusEl = document.getElementById("binding-status");
         statusEl.className = "binding-status success";
@@ -522,6 +526,7 @@ function resetSimulationState() {
     document.getElementById("score-eab").textContent = "-";
     document.getElementById("score-delta").textContent = "-";
     document.getElementById("score-pki").textContent = "-";
+    document.getElementById("score-lability").textContent = "-";
     
     const statusEl = document.getElementById("binding-status");
     if (statusEl) {
@@ -579,6 +584,7 @@ function exportResults() {
     const scoreEab = document.getElementById("score-eab").textContent;
     const scoreDelta = document.getElementById("score-delta").textContent;
     const scorePki = document.getElementById("score-pki").textContent;
+    const scoreLability = document.getElementById("score-lability").textContent;
     
     const results = {
         target_pdb: pdbId,
@@ -587,7 +593,8 @@ function exportResults() {
             E_target: scoreEa,
             E_complex: scoreEab,
             delta_E: scoreDelta,
-            predicted_pki: scorePki
+            predicted_pki: scorePki,
+            lability_index: scoreLability
         },
         sdf_content: rawSdfContent
     };

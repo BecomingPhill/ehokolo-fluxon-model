@@ -25,10 +25,12 @@ class EFMSolver:
         self.c_sq = 1.0
         self.delta = 0.2  # Dissipation / damping coefficient for relaxation
         self.dt = 0.02    # Timestep
-        self.sigma_core = 0.5 / 0.4186  # Core radius in simulation units (~0.5 Angstroms)
         
-        # Length scale (S_L) in Angstroms per simulation unit (from H2 covalent bond calibration)
-        self.S_L = 0.4186
+        # EFM Periodic Table Harmonic Constants
+        self.R_H = 1.001227
+        self.S_L = 0.4186  # Angstroms per simulation unit
+        self.sigma_0 = 0.4 / self.S_L  # Baseline Hydrogen core radius (0.4 Å)
+        self.sigma_core = 0.5 / self.S_L  # Legacy fallback core radius
         
         # Create grid coordinates
         x = torch.linspace(-self.L/2, self.L/2, self.N, device=self.device)
@@ -48,9 +50,9 @@ class EFMSolver:
 
     def build_nuclear_potential(self, atom_coords, atomic_numbers):
         """
-        Builds the attractive nuclear potential V(r) of the system using Gaussian cores
-        to eliminate grid aliasing:
-        V(r) = sum( -Z_i * erf(dist_i / sigma) / dist_i )
+        Builds the nuclear potential using State-Dependent Core Scaling (SDNS):
+        V_i = -Z_i * erf(dist / sigma_i) / dist
+        where core radius scales with Z: sigma_i = sigma_0 * (R_H)^Z_i
         """
         V = torch.zeros((self.N, self.N, self.N), device=self.device)
         if len(atom_coords) == 0:
@@ -66,9 +68,12 @@ class EFMSolver:
             dz_sq = (self.Z - coords_sim[i, 2]) ** 2
             dist = torch.sqrt(dx_sq + dy_sq + dz_sq)
             
+            # SDNS: Core size scales geometrically with atomic number Z
+            sigma_i = self.sigma_0 * (self.R_H ** charges[i].item())
+            
             # Smooth Gaussian-regularized potential to prevent grid aliasing
             eps = 1e-6
-            V_i = -charges[i] * torch.erf(dist / self.sigma_core) / (dist + eps)
+            V_i = -charges[i] * torch.erf(dist / sigma_i) / (dist + eps)
             V += V_i
             
         return V
@@ -163,3 +168,53 @@ class EFMSolver:
             return 0.0
             
         return numerator / denominator
+
+    def calculate_lability_index(self, V_nuc, psi_ground_r, psi_ground_i, steps=100, noise_amplitude=0.01):
+        """Calculates the Dynamical Soliton Lability (L_sol) under Langevin noise."""
+        device = self.device
+        psi_r = psi_ground_r.clone()
+        psi_i = psi_ground_i.clone()
+        psi_prev_r = psi_r.clone()
+        psi_prev_i = psi_i.clone()
+        
+        ground_norm = torch.sum(psi_ground_r**2 + psi_ground_i**2).item()
+        if ground_norm < 1e-12:
+            return 0.0
+            
+        variance_sum = 0.0
+        
+        for t in range(steps):
+            V_perturbed = V_nuc + torch.randn_like(V_nuc, device=device) * noise_amplitude
+            
+            rho = self.k_density * (psi_r**2 + psi_i**2)
+            core_mask = (rho > self.rho_core_thresh).to(torch.float32)
+            mantle_mask = ((rho > self.rho_mantle_thresh) & (rho <= self.rho_core_thresh)).to(torch.float32)
+            binding_mask = (rho <= self.rho_mantle_thresh).to(torch.float32)
+            
+            m_sq = binding_mask * self.m_sq_binding + mantle_mask * self.m_sq_mantle + core_mask * self.m_sq_core
+            g = binding_mask * self.g_binding + mantle_mask * self.g_mantle + core_mask * self.g_core
+            
+            mag_sq = psi_r**2 + psi_i**2
+            force_r = m_sq * psi_r + g * mag_sq * psi_r + self.eta * (mag_sq**2) * psi_r
+            force_i = m_sq * psi_i + g * mag_sq * psi_i + self.eta * (mag_sq**2) * psi_i
+            
+            lap_r = self._compute_laplacian(psi_r)
+            lap_i = self._compute_laplacian(psi_i)
+            
+            F_t_r = self.c_sq * lap_r - force_r - V_perturbed * psi_r
+            F_t_i = self.c_sq * lap_i - force_i - V_perturbed * psi_i
+            
+            coef_prev = 1.0 - (self.delta * self.dt / 2.0)
+            coef_next = 1.0 + (self.delta * self.dt / 2.0)
+            
+            psi_next_r = (2.0 * psi_r - coef_prev * psi_prev_r + (self.dt**2) * F_t_r) / coef_next
+            psi_next_i = (2.0 * psi_i - coef_prev * psi_prev_i + (self.dt**2) * F_t_i) / coef_next
+            
+            psi_prev_r, psi_r = psi_r, psi_next_r
+            psi_prev_i, psi_i = psi_i, psi_next_i
+            
+            dev_r = psi_r - psi_ground_r
+            dev_i = psi_i - psi_ground_i
+            variance_sum += torch.sum(dev_r**2 + dev_i**2).item() / ground_norm
+            
+        return variance_sum / steps

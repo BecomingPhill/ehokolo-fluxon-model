@@ -98,3 +98,14 @@ def test_de_novo_clash_prevention():
         d = np.sqrt(c[0]**2 + c[1]**2 + c[2]**2)
         assert d >= 1.0, f"Atom {idx} is clashing with target atom: distance is {d} Å"
 
+def test_lability_index():
+    solver = EFMSolver(grid_size=16, box_size=10.0, device="cpu")
+    coords = [[0.0, 0.0, 0.0]]
+    charges = [6]
+    V = solver.build_nuclear_potential(coords, charges)
+    psi_r, psi_i = solver.run_simulation(V, atom_coords=coords, steps=5)
+    
+    lability = solver.calculate_lability_index(V, psi_r, psi_i, steps=5, noise_amplitude=0.01)
+    assert isinstance(lability, float)
+    assert lability >= 0.0
+

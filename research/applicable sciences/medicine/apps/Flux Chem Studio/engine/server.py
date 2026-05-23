@@ -340,6 +340,15 @@ async def run_screening(req: ScreeningRequest):
         psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, atom_coords=complex_coords, steps=req.simulation_steps)
         E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
         
+        # Calculate lability index and tag
+        lability_idx = solver.calculate_lability_index(V_complex, psi_complex_r, psi_complex_i, steps=100)
+        if lability_idx < 0.05:
+            lability_tag = "Blocker / Antagonist"
+        elif lability_idx <= 0.15:
+            lability_tag = "Activator / Agonist"
+        else:
+            lability_tag = "Unstable / Steric Clash"
+            
         # Binding energy (Specific Phase Friction shift)
         delta_E = E_complex - E_target
         
@@ -359,7 +368,9 @@ async def run_screening(req: ScreeningRequest):
             "is_favorable": bool(delta_E < 0),
             "center": center,
             "predicted_pki": pred_pki,
-            "calibration_used": calib_name
+            "calibration_used": calib_name,
+            "lability_index": float(lability_idx),
+            "lability_tag": lability_tag
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -681,6 +692,15 @@ async def run_evolution(req: EvolutionRequest):
         E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
         best_score = E_complex - E_target
         
+        # Calculate lability index and tag for final complex
+        lability_idx = solver.calculate_lability_index(V_complex, psi_complex_r, psi_complex_i, steps=100)
+        if lability_idx < 0.05:
+            lability_tag = "Blocker / Antagonist"
+        elif lability_idx <= 0.15:
+            lability_tag = "Activator / Agonist"
+        else:
+            lability_tag = "Unstable / Steric Clash"
+        
         # Build the SDF string representing the fully grown molecule (8 atoms, 8 bonds)
         sdf_lines = [
             "FluxChem_EFM_DeNovo",
@@ -740,7 +760,9 @@ async def run_evolution(req: EvolutionRequest):
             "calibration_used": calib_name,
             "results": results_log,
             "best_candidate": best_candidate,
-            "sdf_content": sdf_content
+            "sdf_content": sdf_content,
+            "lability_index": float(lability_idx),
+            "lability_tag": lability_tag
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

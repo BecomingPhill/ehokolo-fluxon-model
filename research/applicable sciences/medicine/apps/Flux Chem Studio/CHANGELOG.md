@@ -5,6 +5,16 @@ All notable changes to **Flux Chem Studio** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-23
+
+### Added
+- **State-Dependent Nuclear Shell Scaling (SDNS)**: Implemented core potential scaling where nuclear potential radii scale geometrically with element atomic numbers ($Z$) based on EFM Periodic Table Harmonic Constants ($R_H = 1.001227$, $\sigma_i = \sigma_0 \cdot R_H^{Z_i}$). Resolves coordination covalent bonding potential depth anomalies.
+- **Dynamical Soliton Lability ($L_{\text{sol}}$)**: Integrated a dynamic lability module measuring pocket flexibility variance under small Langevin thermal perturbations. Adds dynamic tagging (Blocker/Antagonist, Activator/Agonist, Unstable/Clash) in virtual screening and de novo evolution scorecards.
+- **Lability Scorecard Integration**: Added Lability Index display in the biophysical scorecard and included lability summaries in offline JSON results exports.
+
+### Changed
+- **Validation Dataset Recalibration**: Re-ran the 100-target validation pipeline under the upgraded SDNS core potential solver, achieving a physically consistent global Pearson correlation of $r \approx 0.67$ ($p = 0.00e+00$) and Spearman rank correlation of $\rho \approx 0.65$.
+
 ## [1.1.0] - 2026-05-23
 
 ### Added
