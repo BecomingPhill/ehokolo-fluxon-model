@@ -142,3 +142,31 @@ python build_app.py
 - **On macOS**: Compiles a double-clickable macOS app bundle under `dist/Flux Chem Studio.app`.
 - **On Linux**: Compiles a standalone directory containing the executable binary under `dist/Flux Chem Studio/`.
 - The packaged executable includes all local frontend resources (`frontend/3Dmol-min.js`) and local benchmark data (`data/validation_dataset.json`), satisfying all offline-compliance requirements.
+
+---
+
+## 6. African Lab Usability & Offline Adaptations
+
+To support low-resource, air-gapped drug discovery laboratories in Africa, the codebase includes specialized subsystems:
+
+### Offline Natural Product Database
+- **Location**: `data/african_natural_products.db` (SQLite database containing 15 key indigenous phytocompounds, e.g., Artemisinin, Quinine, Nimbolide).
+- **Compilation**: Seeded via `scratch/build_natural_products_db.py`.
+- **API Access**: 
+  - `GET /natural_products`: List active compounds.
+  - `GET /fetch_natural_product/{id}`: Retrieve SDF coordinate blocks and descriptors.
+
+### Neglected Tropical Disease (NTD) Preset Templates
+- **Location**: Cached structures in `data/` (`1ldg.pdb` for Malaria, `2aq8.pdb` for TB, `4b8a.pdb` for Schistosomiasis, `3o9g.pdb` for Leishmaniasis).
+- **API Access**: `GET /ntd_templates` returns preset coordinate centers and calibrations to enable instant offline loading.
+
+### Low-Spec CPU Optimization Mode
+- **PyTorch Threading**: Sets `torch.set_num_threads(2)` dynamically when `low_spec_mode=True` is passed to the screening or evolution endpoints.
+- **Grid Downscaling**: Clamps the 3D finite-difference integration grid to $32^3$ grid points and limits simulation iterations to 300 steps. This ensures that the application runs smoothly on consumer-grade laptops (e.g., dual-core/quad-core processors) without saturating resources or freezing the GUI thread.
+
+### Multi-Ligand Synergy Docking
+- **Theory**: Models cooperative binding of phytochemical extracts. Instead of docking one ligand, the solver constructs a unified complex potential field combining multiple ligands:
+  $$V_{\text{complex}}(\mathbf{r}) = V_{\text{target}}(\mathbf{r}) + \sum_{j=1}^{M} V_{\text{ligand}_j}(\mathbf{r})$$
+  where $M \le 3$.
+- **UI Integration**: The frontend manages a `#synergy-pool` container. Active site atomic densities are combined, and the complex is relaxed under all coordinates simultaneously.
+

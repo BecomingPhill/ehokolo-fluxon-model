@@ -313,7 +313,8 @@ def run_validation(steps=500, max_targets=100, progress_callback=None):
     for p_class, class_results in grouped_results.items():
         if len(class_results) >= 3:
             c_exp = np.array([r["exp_pki"] for r in class_results])
-            c_pred = np.array([r["efm_score"] for r in class_results])
+            c_pred = np.array([r["pred_pki"] for r in class_results])
+
             
             c_mean_x = np.mean(c_exp)
             c_mean_y = np.mean(c_pred)

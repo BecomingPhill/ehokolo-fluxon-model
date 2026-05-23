@@ -1224,7 +1224,8 @@ async def run_validation_benchmark(req: BenchmarkRequest = BenchmarkRequest()):
         
         non_clash_results = [r for r in results if r["type"] != "clash"]
         exp_vals = np.array([r["exp_pki"] for r in non_clash_results])
-        pred_vals = np.array([r["efm_score"] for r in non_clash_results])
+        pred_vals = np.array([r["predicted_pki"] for r in non_clash_results])
+
         
         mean_x = np.mean(exp_vals)
         mean_y = np.mean(pred_vals)
