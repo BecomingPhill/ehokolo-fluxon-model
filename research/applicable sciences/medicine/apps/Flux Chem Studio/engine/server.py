@@ -365,7 +365,7 @@ async def run_screening(req: ScreeningRequest):
             "E_complex": E_complex,
             "delta_E": delta_E,
             "efm_score": efm_score,
-            "is_favorable": bool(delta_E < 0),
+            "is_favorable": bool((delta_E < 0) or (pred_pki > 5.0)),
             "center": center,
             "predicted_pki": pred_pki,
             "calibration_used": calib_name,

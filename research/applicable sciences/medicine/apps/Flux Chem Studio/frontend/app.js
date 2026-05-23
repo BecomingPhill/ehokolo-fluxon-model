@@ -397,12 +397,12 @@ document.getElementById("run-docking-btn").addEventListener("click", async () =>
         // Display lability index and tag
         document.getElementById("score-lability").textContent = data.lability_index !== undefined ? `${data.lability_index.toFixed(3)} (${data.lability_tag})` : "-";
         
-        if (data.delta_E < 0) {
+        if (data.is_favorable) {
             statusEl.className = "binding-status success";
-            statusEl.innerHTML = `<strong>SUCCESS</strong>: Binding decreases Specific Phase Friction (&Delta;E = ${data.delta_E.toFixed(4)}). Thermodynamically stable covalent/hydrogen-bonded resonance formed.<br/><span style="font-size: 0.95em; opacity: 0.9; display: block; margin-top: 5px;">Calibrated Affinity: pK<sub>i</sub> = ${data.predicted_pki ? data.predicted_pki.toFixed(2) : "-"} (using ${data.calibration_used || "General"})</span>`;
+            statusEl.innerHTML = `<strong>SUCCESS</strong>: Favorable binding profile detected (&Delta;E = ${data.delta_E >= 0 ? "+" : ""}${data.delta_E.toFixed(4)}). Thermodynamically stable covalent/hydrogen-bonded resonance formed.<br/><span style="font-size: 0.95em; opacity: 0.9; display: block; margin-top: 5px;">Calibrated Affinity: pK<sub>i</sub> = ${data.predicted_pki ? data.predicted_pki.toFixed(2) : "-"} (using ${data.calibration_used || "General"})</span>`;
         } else {
             statusEl.className = "binding-status clash";
-            statusEl.innerHTML = `<strong>CLASH</strong>: Binding increases Specific Phase Friction (&Delta;E = +${data.delta_E.toFixed(4)}). Strong Pauli phase repulsion detected.<br/><span style="font-size: 0.95em; opacity: 0.9; display: block; margin-top: 5px;">Calibrated Affinity: pK<sub>i</sub> = ${data.predicted_pki ? data.predicted_pki.toFixed(2) : "-"} (using ${data.calibration_used || "General"})</span>`;
+            statusEl.innerHTML = `<strong>CLASH</strong>: Unfavorable binding profile (&Delta;E = +${data.delta_E.toFixed(4)}). Strong Pauli phase repulsion or weak affinity detected.<br/><span style="font-size: 0.95em; opacity: 0.9; display: block; margin-top: 5px;">Calibrated Affinity: pK<sub>i</sub> = ${data.predicted_pki ? data.predicted_pki.toFixed(2) : "-"} (using ${data.calibration_used || "General"})</span>`;
         }
         
         // Enable Export Results button
