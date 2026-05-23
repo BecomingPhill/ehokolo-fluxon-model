@@ -25,6 +25,7 @@ class EFMSolver:
         self.c_sq = 1.0
         self.delta = 0.2  # Dissipation / damping coefficient for relaxation
         self.dt = 0.02    # Timestep
+        self.sigma_core = 0.5 / 0.4186  # Core radius in simulation units (~0.5 Angstroms)
         
         # Length scale (S_L) in Angstroms per simulation unit (from H2 covalent bond calibration)
         self.S_L = 0.4186
@@ -47,10 +48,9 @@ class EFMSolver:
 
     def build_nuclear_potential(self, atom_coords, atomic_numbers):
         """
-        Builds the attractive nuclear potential V(r) of the system:
-        V(r) = sum( -Z_i / (dist_i + epsilon) )
-        atom_coords: list or array of shape (K, 3) in Angstroms
-        atomic_numbers: list or array of shape (K,) representing charges (H=1, C=6, O=8, etc.)
+        Builds the attractive nuclear potential V(r) of the system using Gaussian cores
+        to eliminate grid aliasing:
+        V(r) = sum( -Z_i * erf(dist_i / sigma) / dist_i )
         """
         V = torch.zeros((self.N, self.N, self.N), device=self.device)
         if len(atom_coords) == 0:
@@ -65,19 +65,32 @@ class EFMSolver:
             dy_sq = (self.Y - coords_sim[i, 1]) ** 2
             dz_sq = (self.Z - coords_sim[i, 2]) ** 2
             dist = torch.sqrt(dx_sq + dy_sq + dz_sq)
-            V += -charges[i] / (dist + 0.1)
+            
+            # Smooth Gaussian-regularized potential to prevent grid aliasing
+            eps = 1e-6
+            V_i = -charges[i] * torch.erf(dist / self.sigma_core) / (dist + eps)
+            V += V_i
             
         return V
 
-    def run_simulation(self, V_nuc, steps=500):
+    def run_simulation(self, V_nuc, atom_coords=None, steps=500):
         """
         Evolves a complex scalar field psi under the nuclear potential V_nuc,
-        allowing it to relax to the EFM ground state using dissipation (delta).
+        allowing it to relax to the EFM ground state using a stable semi-implicit Verlet scheme.
         """
-        # Initialize complex field psi = psi_r + i * psi_i with a low-amplitude seed
-        # Center a small Gaussian wave packet
-        dist_sq = self.X**2 + self.Y**2 + self.Z**2
-        psi_r = torch.exp(-dist_sq / 2.0) * 0.1
+        # Initialize field as a sum of local wavepackets on each atom if coordinates are provided
+        if atom_coords is not None and len(atom_coords) > 0:
+            psi_r = torch.zeros_like(self.X)
+            coords_sim = torch.tensor(atom_coords, dtype=torch.float32, device=self.device) / self.S_L
+            for coord in coords_sim:
+                d_sq = (self.X - coord[0])**2 + (self.Y - coord[1])**2 + (self.Z - coord[2])**2
+                psi_r += torch.exp(-d_sq / 2.0) * 0.1
+            # Clamp initial amplitude to 0.1 to avoid blowup
+            psi_r = torch.clamp(psi_r, max=0.1)
+        else:
+            dist_sq = self.X**2 + self.Y**2 + self.Z**2
+            psi_r = torch.exp(-dist_sq / 2.0) * 0.1
+            
         psi_i = torch.zeros_like(psi_r)
         
         psi_prev_r = psi_r.clone()
@@ -96,7 +109,6 @@ class EFMSolver:
             g = binding_mask * self.g_binding + mantle_mask * self.g_mantle + core_mask * self.g_core
             
             # Compute forces from NLKG terms
-            # F_potential = m_sq * psi + g * |psi|^2 * psi + eta * |psi|^4 * psi
             mag_sq = psi_r**2 + psi_i**2
             force_r = m_sq * psi_r + g * mag_sq * psi_r + self.eta * (mag_sq**2) * psi_r
             force_i = m_sq * psi_i + g * mag_sq * psi_i + self.eta * (mag_sq**2) * psi_i
@@ -105,25 +117,22 @@ class EFMSolver:
             lap_r = self._compute_laplacian(psi_r)
             lap_i = self._compute_laplacian(psi_i)
             
-            # EFM dissipation/velocity damping term
-            psi_dot_r = (psi_r - psi_prev_r) / self.dt
-            psi_dot_i = (psi_i - psi_prev_i) / self.dt
+            # Force without damping (Verlet step F_t)
+            F_t_r = self.c_sq * lap_r - force_r - V_nuc * psi_r
+            F_t_i = self.c_sq * lap_i - force_i - V_nuc * psi_i
             
-            # Accelerations (c^2 * lap - forces - nuclear attraction - velocity damping)
-            # Attraction is -V_nuc * psi because V_nuc is negative (attractive potential)
-            accel_r = self.c_sq * lap_r - force_r - V_nuc * psi_r - self.delta * psi_dot_r
-            accel_i = self.c_sq * lap_i - force_i - V_nuc * psi_i - self.delta * psi_dot_i
+            # Centered semi-implicit Verlet integration for damped wave equations:
+            coef_prev = 1.0 - (self.delta * self.dt / 2.0)
+            coef_next = 1.0 + (self.delta * self.dt / 2.0)
             
-            # Evolve via Verlet integration
-            psi_next_r = 2.0 * psi_r - psi_prev_r + accel_r * (self.dt ** 2)
-            psi_next_i = 2.0 * psi_i - psi_prev_i + accel_i * (self.dt ** 2)
+            psi_next_r = (2.0 * psi_r - coef_prev * psi_prev_r + (self.dt**2) * F_t_r) / coef_next
+            psi_next_i = (2.0 * psi_i - coef_prev * psi_prev_i + (self.dt**2) * F_t_i) / coef_next
             
             psi_prev_r, psi_r = psi_r, psi_next_r
             psi_prev_i, psi_i = psi_i, psi_next_i
             
             # Numerical cutoff to prevent instability
             if torch.isnan(psi_r).any():
-                # Re-initialize to prevent crash if numerical singularity is hit
                 psi_r = torch.zeros_like(psi_r)
                 psi_i = torch.zeros_like(psi_i)
                 break

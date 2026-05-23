@@ -45,7 +45,7 @@ def test_run_simulation_and_friction():
     charges = [6]
     V = solver.build_nuclear_potential(coords, charges)
     
-    psi_r, psi_i = solver.run_simulation(V, steps=5)
+    psi_r, psi_i = solver.run_simulation(V, atom_coords=coords, steps=5)
     
     assert psi_r.shape == (16, 16, 16)
     assert psi_i.shape == (16, 16, 16)

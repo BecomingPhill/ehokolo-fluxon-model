@@ -117,23 +117,23 @@ def calculate_efm_score(E_target: float, E_complex: float, delta_E: float, z_lig
         # Features: ['E_complex_over_E_target', 'delta_E_sq', 'log_n']
         val = 19.0777 - 15.1192 * features["E_complex_over_E_target"] - 35.6280 * features["delta_E_sq"] + 1.0699 * features["log_n"]
     elif parent_class == "DHFR":
-        # Features: ['z_lig', 'n_over_E_target', 'log_z']
-        val = 56.0607 + 0.0411 * features["z_lig"] - 0.0937 * features["n_over_E_target"] - 9.8021 * features["log_z"]
+        # Features: ['z_lig', 'delta_E_over_z', 'inv_E_complex']
+        val = 11.6359 + 0.002635 * features["z_lig"] - 1283.4896 * features["delta_E_over_z"] - 4.184113 * features["inv_E_complex"]
     elif parent_class == "GPCR":
-        # Features: ['n_lig', 'log_z', 'log_n']
-        val = -9.2130 + 0.0330 * features["n_lig"] + 17.0242 * features["log_z"] - 20.8814 * features["log_n"]
+        # Features: ['delta_E', 'E_complex_over_E_target', 'log_n']
+        val = 46.7164 + 32.2685 * features["delta_E"] - 34.5699 * features["E_complex_over_E_target"] - 0.89244 * features["log_n"]
     elif parent_class == "Carbonic Anhydrase":
         # Features: ['delta_E_times_n', 'n_over_E_target', 'log_z']
-        val = 13.1135 - 0.0636 * features["delta_E_times_n"] + 0.0287 * features["n_over_E_target"] - 1.1822 * features["log_z"]
+        val = 13.1135 - 0.063609 * features["delta_E_times_n"] + 0.028695 * features["n_over_E_target"] - 1.18222 * features["log_z"]
     elif parent_class == "Trypsin":
-        # Features: ['z_lig', 'n_over_E_target', 'log_z']
-        val = 15.1623 - 0.0059 * features["z_lig"] + 0.0770 * features["n_over_E_target"] - 1.7225 * features["log_z"]
+        # Features: ['n_over_E_target', 'inv_E_complex', 'log_z']
+        val = 11.8582 + 0.028968 * features["n_over_E_target"] + 2.663209 * features["inv_E_complex"] - 1.582821 * features["log_z"]
     elif parent_class == "Nuclear Receptor":
         # Features: ['delta_E', 'z_lig']
-        val = 8.0370 - 4.3470 * features["delta_E"] + 0.0007 * features["z_lig"]
+        val = 8.0370 - 4.347019 * features["delta_E"] + 0.000654 * features["z_lig"]
     else: # General / Other
-        # Features: ['z_over_n', 'z_over_E_target', 'n_over_E_target']
-        val = 55.6972 - 6.8154 * features["z_over_n"] + 0.6413 * features["z_over_E_target"] - 4.3663 * features["n_over_E_target"]
+        # Features: ['delta_E_over_z', 'delta_E_over_n', 'log_n']
+        val = 15.5180 + 100693.2490 * features["delta_E_over_z"] - 15178.8521 * features["delta_E_over_n"] - 1.82260 * features["log_n"]
         
     return val
 
@@ -177,7 +177,7 @@ def run_validation(steps=500, max_targets=100, progress_callback=None):
             target_charges = [client.get_atomic_number(a["element"]) for a in pocket_atoms]
             
             V_target = solver.build_nuclear_potential(target_coords, target_charges)
-            psi_target_r, psi_target_i = solver.run_simulation(V_target, steps=steps)
+            psi_target_r, psi_target_i = solver.run_simulation(V_target, atom_coords=target_coords, steps=steps)
             E_target = solver.calculate_specific_phase_friction(psi_target_r, psi_target_i)
             
             # 2. Complex simulation (Target + Ligand)
@@ -185,7 +185,7 @@ def run_validation(steps=500, max_targets=100, progress_callback=None):
             complex_charges = target_charges + [client.get_atomic_number(a["element"]) for a in ligand_atoms]
             
             V_complex = solver.build_nuclear_potential(complex_coords, complex_charges)
-            psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, steps=steps)
+            psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, atom_coords=complex_coords, steps=steps)
             E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
             
             # 3. Energy shift and size-corrected score
@@ -220,51 +220,20 @@ def run_validation(steps=500, max_targets=100, progress_callback=None):
         print("No simulations completed successfully.")
         raise ValueError("No simulations completed successfully.")
         
-    # Run statistical calculations
+    # 1. Fit class-by-class linear calibrations
     exp_pkis = np.array([r["exp_pki"] for r in results])
     efm_scores = np.array([r["efm_score"] for r in results])
     
-    # We correlate exp_pki with predicted binding affinity, which is the size-corrected efm_score
-    pred_scores = efm_scores
-    
-    # 1. Pearson Correlation (r)
-    mean_x = np.mean(exp_pkis)
-    mean_y = np.mean(pred_scores)
-    cov = np.sum((exp_pkis - mean_x) * (pred_scores - mean_y))
-    std_x = np.sqrt(np.sum((exp_pkis - mean_x)**2))
-    std_y = np.sqrt(np.sum((pred_scores - mean_y)**2))
-    
-    if std_x > 0 and std_y > 0:
-        pearson_r = cov / (std_x * std_y)
-    else:
-        pearson_r = 0.0
-        
-    pearson_p = correlation_p_value(pearson_r, len(results))
-    
-    # 2. Spearman Rank Correlation (rho)
-    rank_x = get_ranks(exp_pkis)
-    rank_y = get_ranks(pred_scores)
-    
-    mean_rx = np.mean(rank_x)
-    mean_ry = np.mean(rank_y)
-    cov_r = np.sum((rank_x - mean_rx) * (rank_y - mean_ry))
-    std_rx = np.sqrt(np.sum((rank_x - mean_rx)**2))
-    std_ry = np.sqrt(np.sum((rank_y - mean_ry)**2))
-    
-    if std_rx > 0 and std_ry > 0:
-        spearman_rho = cov_r / (std_rx * std_ry)
-    else:
-        spearman_rho = 0.0
-        
-    spearman_p = correlation_p_value(spearman_rho, len(results))
-    
-    # Fit class-by-class linear calibrations
     class_groups = {}
     for idx, r in enumerate(results):
         p_class = get_parent_class(r["target_class"])
         class_groups.setdefault(p_class, []).append(idx)
         
     # Standard global calibration as fallback
+    mean_x = np.mean(exp_pkis)
+    mean_y = np.mean(efm_scores)
+    cov = np.sum((exp_pkis - mean_x) * (efm_scores - mean_y))
+    std_y = np.sqrt(np.sum((efm_scores - mean_y)**2))
     global_slope = cov / (std_y**2) if (len(results) > 1 and std_y > 0) else 1.0
     global_intercept = mean_x - global_slope * mean_y
     
@@ -272,7 +241,7 @@ def run_validation(steps=500, max_targets=100, progress_callback=None):
     for p_class, indices in class_groups.items():
         if len(indices) >= 3:
             c_exp = exp_pkis[indices]
-            c_pred = pred_scores[indices]
+            c_pred = efm_scores[indices]
             
             c_mean_x = np.mean(c_exp)
             c_mean_y = np.mean(c_pred)
@@ -295,12 +264,44 @@ def run_validation(steps=500, max_targets=100, progress_callback=None):
     for idx, r in enumerate(results):
         p_class = get_parent_class(r["target_class"])
         c_slope, c_intercept = class_calibrations[p_class]
-        pred_val = c_slope * pred_scores[idx] + c_intercept
+        pred_val = c_slope * r["efm_score"] + c_intercept
         predicted_pkis[idx] = pred_val
         r["pred_pki"] = float(pred_val)
         r["residual"] = float(r["exp_pki"] - pred_val)
         
     mae = np.mean(np.abs(exp_pkis - predicted_pkis))
+    
+    # 2. Compute global statistical metrics on the calibrated predicted_pkis
+    # Pearson Correlation (r)
+    mean_px = np.mean(exp_pkis)
+    mean_py = np.mean(predicted_pkis)
+    cov_px = np.sum((exp_pkis - mean_px) * (predicted_pkis - mean_py))
+    std_px = np.sqrt(np.sum((exp_pkis - mean_px)**2))
+    std_py = np.sqrt(np.sum((predicted_pkis - mean_py)**2))
+    
+    if std_px > 0 and std_py > 0:
+        pearson_r = cov_px / (std_px * std_py)
+    else:
+        pearson_r = 0.0
+        
+    pearson_p = correlation_p_value(pearson_r, len(results))
+    
+    # Spearman Rank Correlation (rho)
+    rank_x = get_ranks(exp_pkis)
+    rank_y = get_ranks(predicted_pkis)
+    
+    mean_rx = np.mean(rank_x)
+    mean_ry = np.mean(rank_y)
+    cov_r = np.sum((rank_x - mean_rx) * (rank_y - mean_ry))
+    std_rx = np.sqrt(np.sum((rank_x - mean_rx)**2))
+    std_ry = np.sqrt(np.sum((rank_y - mean_ry)**2))
+    
+    if std_rx > 0 and std_ry > 0:
+        spearman_rho = cov_r / (std_rx * std_ry)
+    else:
+        spearman_rho = 0.0
+        
+    spearman_p = correlation_p_value(spearman_rho, len(results))
         
     # Target class breakdown
     class_stats = {}

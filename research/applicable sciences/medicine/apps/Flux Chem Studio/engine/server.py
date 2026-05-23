@@ -328,7 +328,7 @@ async def run_screening(req: ScreeningRequest):
         V_target = solver.build_nuclear_potential(target_coords, target_charges)
         
         # Evolve target alone
-        psi_target_r, psi_target_i = solver.run_simulation(V_target, steps=req.simulation_steps)
+        psi_target_r, psi_target_i = solver.run_simulation(V_target, atom_coords=target_coords, steps=req.simulation_steps)
         E_target = solver.calculate_specific_phase_friction(psi_target_r, psi_target_i)
         
         # Complex potential (Target + Ligand)
@@ -337,7 +337,7 @@ async def run_screening(req: ScreeningRequest):
         V_complex = solver.build_nuclear_potential(complex_coords, complex_charges)
         
         # Evolve complex
-        psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, steps=req.simulation_steps)
+        psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, atom_coords=complex_coords, steps=req.simulation_steps)
         E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
         
         # Binding energy (Specific Phase Friction shift)
@@ -384,7 +384,7 @@ async def run_evolution(req: EvolutionRequest):
         V_target = solver.build_nuclear_potential(target_coords, target_charges)
         
         # Evolve target alone
-        psi_target_r, psi_target_i = solver.run_simulation(V_target, steps=req.simulation_steps or 500)
+        psi_target_r, psi_target_i = solver.run_simulation(V_target, atom_coords=target_coords, steps=req.simulation_steps or 500)
         E_target = solver.calculate_specific_phase_friction(psi_target_r, psi_target_i)
         
         # 8-atom growth plan topology:
@@ -461,7 +461,7 @@ async def run_evolution(req: EvolutionRequest):
         ligand_elements = ["C"]
 
         # Run EFM simulation for target alone at 30 steps to serve as baseline for candidate evaluation
-        psi_target_30_r, psi_target_30_i = solver.run_simulation(V_target, steps=30)
+        psi_target_30_r, psi_target_30_i = solver.run_simulation(V_target, atom_coords=target_coords, steps=30)
         E_target_30 = solver.calculate_specific_phase_friction(psi_target_30_r, psi_target_30_i)
 
         # Calculate seed_delta_E using 30-step simulation
@@ -470,7 +470,7 @@ async def run_evolution(req: EvolutionRequest):
         complex_coords = target_coords + [[c[0] * solver.S_L, c[1] * solver.S_L, c[2] * solver.S_L] for c in temp_lig_coords]
         complex_charges = target_charges + temp_lig_charges
         V_complex = solver.build_nuclear_potential(complex_coords, complex_charges)
-        psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, steps=30)
+        psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, atom_coords=complex_coords, steps=30)
         E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
         seed_delta_E = E_complex - E_target_30
 
@@ -624,7 +624,7 @@ async def run_evolution(req: EvolutionRequest):
                 complex_charges = target_charges + temp_lig_charges
                 
                 V_complex = solver.build_nuclear_potential(complex_coords, complex_charges)
-                psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, steps=30)
+                psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, atom_coords=complex_coords, steps=30)
                 E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
                 delta_E = E_complex - E_target_30
                 
@@ -643,7 +643,7 @@ async def run_evolution(req: EvolutionRequest):
                 complex_charges = target_charges + temp_lig_charges
                 
                 V_complex = solver.build_nuclear_potential(complex_coords, complex_charges)
-                psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, steps=30)
+                psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, atom_coords=complex_coords, steps=30)
                 E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
                 delta_E = E_complex - E_target_30
                 
@@ -677,7 +677,7 @@ async def run_evolution(req: EvolutionRequest):
         complex_charges = target_charges + final_charges
         
         V_complex = solver.build_nuclear_potential(complex_coords, complex_charges)
-        psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, steps=req.simulation_steps or 500)
+        psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, atom_coords=complex_coords, steps=req.simulation_steps or 500)
         E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
         best_score = E_complex - E_target
         
@@ -866,7 +866,7 @@ async def run_validation_benchmark(req: BenchmarkRequest = BenchmarkRequest()):
         # 1. Setup EFM Solver and run target alone wave relaxation
         solver = EFMSolver(grid_size=32, box_size=16.0)
         V_target = solver.build_nuclear_potential(target_coords, target_charges)
-        psi_target_r, psi_target_i = solver.run_simulation(V_target, steps=500)
+        psi_target_r, psi_target_i = solver.run_simulation(V_target, atom_coords=target_coords, steps=500)
         E_target = solver.calculate_specific_phase_friction(psi_target_r, psi_target_i)
         
         # 2. Select the 3 other comparative ligands
@@ -961,7 +961,7 @@ async def run_validation_benchmark(req: BenchmarkRequest = BenchmarkRequest()):
             complex_charges = target_charges + [client.get_atomic_number(a["element"]) for a in lig_atoms]
             
             V_complex = solver.build_nuclear_potential(complex_coords, complex_charges)
-            psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, steps=500)
+            psi_complex_r, psi_complex_i = solver.run_simulation(V_complex, atom_coords=complex_coords, steps=500)
             E_complex = solver.calculate_specific_phase_friction(psi_complex_r, psi_complex_i)
             delta_E = E_complex - E_target
             
