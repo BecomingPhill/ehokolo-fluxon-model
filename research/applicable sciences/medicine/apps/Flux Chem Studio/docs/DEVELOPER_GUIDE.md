@@ -33,7 +33,7 @@ graph TD
 
 ## 2. Mathematical Equations
 
-The Electrostatic Field Model (EFM) score is derived from the **Nonlinear Klein-Gordon (NLKG)** equation:
+The Eholoko Fluxon Model (EFM) score is derived from the **Nonlinear Klein-Gordon (NLKG)** equation:
 
 $$\nabla^2 \phi - m^2 \phi + \lambda \phi^3 = -4\pi \rho(\mathbf{r})$$
 

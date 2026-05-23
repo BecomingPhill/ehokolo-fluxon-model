@@ -1,6 +1,6 @@
 # Flux Chem Studio
 
-Flux Chem Studio is an offline-first molecular design desktop application integrating EFM (Electrostatic Field Model) biophysical solvers, 3D molecular visualization, virtual screening, and topological de novo ligand evolution.
+Flux Chem Studio is an offline-first molecular design desktop application integrating EFM (Eholoko Fluxon Model) biophysical solvers, 3D molecular visualization, virtual screening, and topological de novo ligand evolution.
 
 ## Features
 
