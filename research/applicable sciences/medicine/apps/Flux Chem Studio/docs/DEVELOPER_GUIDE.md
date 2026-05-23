@@ -10,11 +10,11 @@ Flux Chem Studio is structured as an offline-first desktop application consistin
 
 ```mermaid
 graph TD
-    A[macOS/Linux Desktop Window (PyWebView)] -->|HTTP / JSON / JS Bridge| B[FastAPI Local Server (Uvicorn)]
-    B --> C[EFM Biophysics Solver (PyTorch)]
-    B --> D[API Client (RCSB, PubChem, ChEMBL)]
-    B --> E[Static Assets (frontend/ HTML/CSS/JS/3Dmol.js)]
-    C --> F[PDB Pocket Core / Density Fitting]
+    A["macOS/Linux Desktop Window (PyWebView)"] -->|HTTP / JSON / JS Bridge| B["FastAPI Local Server (Uvicorn)"]
+    B --> C["EFM Biophysics Solver (PyTorch)"]
+    B --> D["API Client (RCSB, PubChem, ChEMBL)"]
+    B --> E["Static Assets (frontend/ HTML/CSS/JS/3Dmol.js)"]
+    C --> F["PDB Pocket Core / Density Fitting"]
 ```
 
 ### Frontend (`frontend/`)
