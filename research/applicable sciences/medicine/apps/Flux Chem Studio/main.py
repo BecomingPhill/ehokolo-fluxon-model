@@ -54,6 +54,12 @@ class Api:
         
         if result:
             filepath = result if isinstance(result, str) else result[0]
+            
+            # Enforce file extension matching the source filename if missing in the chosen path
+            ext = os.path.splitext(filename)[1]
+            if ext and not filepath.lower().endswith(ext.lower()):
+                filepath += ext
+                
             try:
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(content)

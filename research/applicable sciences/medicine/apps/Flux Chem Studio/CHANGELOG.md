@@ -5,6 +5,11 @@ All notable changes to **Flux Chem Studio** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-05-23
+
+### Fixed
+- **Native Save Panel Extension Enforcement**: Enforced file extension validation inside `main.py`'s `save_file` method. If the user or macOS dialog outputs a filename path without the appropriate extension (e.g., saving `flux_chem_results_1HSG` without `.json` or `ligand_1HSG` without `.sdf`), the backend automatically appends the expected file extension. This guarantees exported files are immediately readable in downstream molecular visualization and drug design workflows.
+
 ## [1.2.1] - 2026-05-23
 
 ### Fixed
