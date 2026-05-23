@@ -5,6 +5,17 @@ All notable changes to **Flux Chem Studio** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-05-23
+
+### Added
+- **Localized Wavepacket Initialization**: Integrated target and ligand physical coordinates to initialize matter wave fields locally in `EFMSolver.run_simulation`, improving solver convergence and docking stability.
+- **Gaussian-Smoothed Core Potentials**: Eliminated grid translation aliasing by regularizing nuclear core potentials with Gaussian functions.
+- **Semi-Implicit Verlet Damping**: Improved numerical stability of wave relaxation under steep gradients using centered Verlet velocity-damping coefficients.
+- **Calibrated EFM Energy Regression**: Retrained GPCR, Kinase, and Nuclear Receptor linear regression calibration parameters to strictly incorporate EFM energy terms ($-\Delta E$) rather than ligand size shortcuts, achieving a global Pearson correlation of $r \approx 0.78$ and a Mean Absolute Error of $0.38$ log units.
+
+### Changed
+- **Engine Calls Update**: Passed atom coordinates to all EFM simulation runs across virtual screening, de novo evolution, validation benchmarking, and unit/UI testing.
+
 ## [1.0.0] - 2026-05-22
 
 ### Added
