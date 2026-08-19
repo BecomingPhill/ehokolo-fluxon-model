@@ -1,0 +1,189 @@
+\documentclass[11pt, twoside]{article}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+
+% Header Settings
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{14pt}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[CE]{EFM Technical Supplement: Simulation Architectures}
+\fancyhead[CO]{Tshuutheni Emvula}
+
+% Hyperlink Configuration
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=green,
+}
+
+% Code Style
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red}
+}
+
+\title{\textbf{Technical Supplement: Simulation Architectures, Hardware Specifications, and Initial Conditions for the EFM Cosmogenesis Series}}
+\author{Tshuutheni Emvula\thanks{Independent Researcher, Team Lead, Independent Frontier Science Collaboration. Email: \texttt{T.Emvula@gmail.com}. Computational infrastructure deployed across NVIDIA A100-SXM4 80GB, RTX PRO 6000 Blackwell, and Google Cloud TPU architectures.}}
+\date{January 2026}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+This Technical Supplement provides the comprehensive computational specifications, mathematical boundary configurations, initial conditions, and distributed hardware execution architectures for the Eholoko Fluxon Model (EFM) cosmogenesis and metaphysics research series. We document the memory optimization algorithms required to execute large-scale 3D scalar field simulations ($N=1024^3$ and $N=2048^3$), including the custom slab-processing engine, 4th-Order Runge-Kutta (RK4) temporal integrators, derivative damping kernels, and full open-replication checksum tables.
+\end{abstract}
+
+\clearpage
+\tableofcontents
+\clearpage
+
+\section{Overview}
+This document serves as the technical companion to the following research papers:
+\begin{enumerate}
+    \item \textit{The Primordial Genesis Lattice and Multi-Hardware Scale Parity}
+    \item \textit{The Cosmic Chronology: Derivation of the Great Recrystallization and Structural Snap}
+    \item \textit{The Multiplexed Solar System: Empirical Derivation of Planetary Architectures}
+    \item \textit{The Geometry of Consciousness: Fisher Information and the Multiplexed Vacuum}
+    \item \textit{The Physics of Ascension: Phase-Locked Evolution and Teleological Gravity}
+    \item \textit{The Decoupling of Phase and Structure in the $N_3 \to N_4$ Topological Transition}
+\end{enumerate}
+It details the computational frameworks, hardware environments, and specific parameter sets required to reproduce all reported findings.
+
+\section{Computational Environment}
+
+\subsection{Hardware Specifications}
+All high-resolution simulations ($N \ge 1024$) were conducted on the following infrastructure:
+\begin{itemize}
+    \item \textbf{Primary Compute Nodes:} NVIDIA RTX PRO 6000 Blackwell Server Edition and NVIDIA A100-SXM4 Tensor Core GPUs (80 GB HBM2e).
+    \item \textbf{High-RAM System Memory:} 170 GB to 330 GB Host RAM.
+    \item \textbf{Cloud TPU Acceleration:} Google Cloud TPU v5e/v6e-1 Pods.
+    \item \textbf{Precision Format:} Mixed Precision (Float32 for spatial gradients and accumulations; BFloat16/Float32 for state checkpoints).
+\end{itemize}
+
+\subsection{Software Stack}
+\begin{itemize}
+    \item \textbf{Language \& Runtime:} Python 3.10 / 3.12 with PyTorch 2.4.1 (CUDA 12.1+ backend) and JIT Compilation (\texttt{torch.jit.script}).
+    \item \textbf{Temporal Integration:} Explicit 4th-Order Runge-Kutta (RK4) with CFL-invariant time stepping ($\Delta t = 0.001 \cdot L / (N \cdot c)$).
+\end{itemize}
+
+\section{The High-Scale ($N=2048$) Architecture}
+To simulate a grid of $2048^3$ voxels (8.59 billion active degrees of freedom) within standard GPU VRAM limits, a custom ``Slab Processing'' engine was developed.
+
+\subsection{Hybrid Memory Management}
+The simulation utilizes a split-memory approach:
+\begin{itemize}
+    \item \textbf{State Storage ($\phi, \dot{\phi}$):} Resident in GPU VRAM (Allocated as `BFloat16` $\approx 34.4$ GB).
+    \item \textbf{Compute Buffer:} Temporary calculations (Laplacians, Forces) are performed in sliding Z-axis ``slabs'' (chunks of 32 slices).
+    \item \textbf{Halo Handling:} Boundary conditions are handled via dynamic padding during the slab convolution step to ensure mathematical continuity across slice boundaries.
+\end{itemize}
+
+\begin{lstlisting}[language=Python, caption=Core Logic for Memory-Safe N=2048 Compute]
+import torch
+
+def step_rk4_slabbed(phi, phi_dot, cfg):
+    N = cfg['N']
+    SLAB_SIZE = 32
+    
+    for z in range(0, N, SLAB_SIZE):
+        # 1. Extract Slab + Halo (Padding)
+        slab = get_slab_with_halo(phi, z, SLAB_SIZE)
+        
+        # 2. Compute Derivatives Locally
+        k1 = compute_physics(slab)
+        
+        # 3. Update Global State In-Place
+        update_global_tensor(phi, phi_dot, k1, z, SLAB_SIZE)
+        
+        # 4. Flush Temporary Memory
+        torch.cuda.empty_cache()
+\end{lstlisting}
+
+\section{Simulation Parameters by Study}
+
+\subsection{Study 1: Primordial Genesis Lattice \& Scale Parity}
+\textbf{Objective:} Validate multi-hardware determinism and CFL scale invariance ($N=784 \leftrightarrow 1024$).
+\begin{table}[H]
+\centering
+\caption{Parameters for Primordial Genesis Scale Parity.}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\ \midrule
+Grid Resolutions ($N^3$) & $784^3$ and $1024^3$ \\
+Domain Length ($L$) & $40.0$ simulation units \\
+Inflation Transition ($t_{\text{trans}}$) & Step $1,000$ \\
+Epoch 0 Physical Parity Step & Step $40,000$ ($N=784$) $\equiv$ Step $52,245$ ($N=1024$) \\
+Physical Time ($t_{\text{phys}}$) & $2.0408$ simulation units \\
+Derivative Cooling ($\alpha$) & $0.700$ \\
+Kinetic Regulation ($\delta$) & $0.0002$ \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Study 2: Cosmic Chronology \& Geological Snaps}
+\textbf{Objective:} Map simulation steps to physical geological time.
+\begin{table}[H]
+\centering
+\caption{Parameters for Cosmic Chronology Validation.}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\ \midrule
+Grid Size ($N^3$) & $1024^3$ and $784^3$ \\
+Total Duration & 267,000 Steps ($N=784$) / 348,735 Steps ($N=1024$) \\
+Physical Age Calibration & 13.8 Billion Years \\
+\textbf{Time Resolution} & \textbf{51,685 Years / Step ($N=784$)} \\
+Firstborn Emergence & Step 130,000 ($N=784$) / Step 169,796 ($N=1024$) \\
+Great Recrystallization & Step 240,000 ($N=784$) / Step 313,469 ($N=1024$) \\
+Structural Snap & Step 262,000 ($N=784$) / Step 342,204 ($N=1024$) \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\section{Transparency, Checksums \& Open Replication Protocol}
+
+All primary checkpoints, tomography arrays, and configuration files are permanently indexed on Google Drive:
+
+\begin{table}[H]
+\centering
+\caption{Master Checkpoint Replication Manifest.}
+\label{tab:master_replication}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Dataset Designation} & \textbf{Google Drive File ID} & \textbf{Resolution / Epoch} & \textbf{Hardware Architecture} \\ \midrule
+$N=784$ Benchmark Checkpoint & \texttt{1QGPFmDMfE6xxSPk42U8lqZCAhxKyidSA} & Epoch 0 (Step 40,000) & CPU Reference \\
+$N=1024$ Blackwell Checkpoint & \texttt{1bZ91iWNPml0kbHMEiWqGOQNU6GLcpvdn} & Epoch 0 (Step 40,000) & RTX PRO 6000 Blackwell \\
+$N=1024$ Parity Checkpoint & \texttt{1AcMpj-hhQdy4Eezp8DaA8iGIqAG3\_yrX} & Epoch 0 (Step 52,245) & RTX PRO 6000 Blackwell \\
+$N=1024$ Periodic GPU Checkpoint & \texttt{1d763-71w7kL1Y\_a3\_z7R802g0L16h1pP} & Intermediate Phase ($t_{\text{phys}}=9.38$, Step 240k) & NVIDIA A100 SXM4 80GB \\
+$N=1024$ Periodic TPU Checkpoint & \texttt{1g3ZAuryThGh9aHkD4289W6p3Ih6ZnY1J} & Intermediate Phase ($t_{\text{phys}}=9.38$, Step 240k) & Google Cloud TPU v6e-1 Pod \\
+$N=784$ Master Benchmark & \texttt{11uE5MbZRR0gMVnfCPzPsSd9H7XxYFl2J} & Epoch III ($t_{\text{phys}}=13.62$, Step 267k) & CPU Reference \\ \bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\bibliographystyle{ieeetr}
+\begin{thebibliography}{9}
+\bibitem{emvula2025_foundational} T. Emvula, \textit{The Foundational Hierarchy of the Eholoko Fluxon Model: An Axiomatic Ordering of the Harmonic Density States}, Independent Frontier Science Collaboration, 2025.
+\bibitem{emvula2025_engine} T. Emvula, \textit{The Cosmic Engine: A First-Principles Derivation of the Universe's Eight-Fold Thermodynamic Structure in the Eholoko Fluxon Model}, Independent Frontier Science Collaboration, 2025.
+\bibitem{emvula2026_chronology} T. Emvula, \textit{The Cosmic Chronology: A First-Principles Derivation of the Great Recrystallization and the Structural Snap from the Eholoko Fluxon Model}, Independent Frontier Science Collaboration, 2026.
+\end{thebibliography}
+
+\end{document}
